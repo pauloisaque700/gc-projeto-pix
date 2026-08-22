@@ -76,7 +76,7 @@ export default function AdicionarChave() {
             {/* Seção: Conta para recebimento */}
             <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-slate-700">
-                Conta para recebimento
+                    Conta para recebimento
                 </label>
                 <Dropdown  
                     options={contasDisponiveis} 
