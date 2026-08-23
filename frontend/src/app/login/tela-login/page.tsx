@@ -1,9 +1,9 @@
 "use client"
-import Card from '../../components/Card'
-import Tela from '../../components/Tela'
-import SmartphoneHeader from '../../components/SmartphoneHeader'
-import Input from '../../components/Input'
-import BotaoGrande from '../../components/BotaoGrande'
+import Card from '../../../components/Card'
+import Tela from '../../../components/Tela'
+import SmartphoneHeader from '../../../components/SmartphoneHeader'
+import Input from '../../../components/Input'
+import BotaoGrande from '../../../components/BotaoGrande'
 import { Icon } from 'lucide-react'
 import { User, Lock, Mail } from 'lucide-react'
 
