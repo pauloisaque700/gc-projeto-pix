@@ -7,7 +7,7 @@ import Radio from "../../../components/Radio";
 import Input from "../../../components/Input";
 import Dropdown from "../../../components/DropDown";
 import BotaoGrande from "../../../components/BotaoGrande";
-import { User, Building2, Phone, Mail, CheckCircle2, ShieldCheck, AlertCircle } from "lucide-react";
+import { User, Building2, Phone, Mail, CheckCircle2, ShieldCheck, AlertCircle, RotateCw} from "lucide-react";
 import { useState } from "react";
 import Tag from "@/src/components/Tag";
 

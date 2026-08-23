@@ -142,7 +142,16 @@ export default function MinhasChavesPix() {
             icon={<Plus className="w-4 h-4 stroke-[2.5]" />}
             onClick={() => router.push('/pix/adicionar-chave')} // Altere aqui para a rota exata da sua pasta do formulário
           />
-
+            <BotaoGrande 
+                text="Gerar chave aleatória"
+                bgClass="bg-white hover:bg-slate-50/50"
+                borderClass="border border-slate-200"
+                textClass="text-[#4F46E5] font-semibold"
+                widthClass="w-full"
+                icon={<RotateCw className="w-4 h-4 stroke-[2.2]" />}
+                onClick={() => console.log("Ação de gerar chave aleatória")}
+            />
+          
         </div>
 
       </div>
