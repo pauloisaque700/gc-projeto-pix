@@ -8,7 +8,6 @@ import { User, Lock, Mail, Phone, CreditCard } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Cadastro() {
-    // 1. Estados para controlar cada campo do cadastro
     const [nome, setNome] = useState('')
     const [cpf, setCpf] = useState('')
     const [email, setEmail] = useState('')
