@@ -25,7 +25,7 @@ export default function ConfirmarPix() {
   });
 
   const [transferencia] = useState({
-    valor: "250,00",
+    valor: "251,00",
     tarifa: "Grátis"
   });
 
@@ -48,7 +48,7 @@ export default function ConfirmarPix() {
 
   return (
     <Tela>
-      <SmartphoneHeader title="CONFIRMAR PIX" backToUrl="/pix/transferir" />
+      <SmartphoneHeader title="CONFIRMAR PIX" backToUrl="/pix/transferir-pix" />
 
       <div className="flex flex-col gap-4 px-4 font-sans pb-6">
         
