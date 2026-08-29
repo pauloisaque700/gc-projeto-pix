@@ -1,7 +1,9 @@
 package com.byebank.pix.application.usuario;
 
+import com.byebank.pix.application.comum.RegraDeNegocioException;
 import com.byebank.pix.domain.usuario.TipoDocumento;
 import com.byebank.pix.domain.usuario.Usuario;
+import com.byebank.pix.infrastructure.conta.RepositorioContaBancariaEmMemoria;
 import com.byebank.pix.infrastructure.usuario.RepositorioUsuarioEmMemoria;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,7 +16,7 @@ class ServicoUsuarioTest {
 
     @BeforeEach
     void preparar() {
-        servicoUsuario = new ServicoUsuario(new RepositorioUsuarioEmMemoria());
+        servicoUsuario = new ServicoUsuario(new RepositorioUsuarioEmMemoria(), new RepositorioContaBancariaEmMemoria());
     }
 
     @Test

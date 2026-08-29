@@ -31,6 +31,28 @@ Exemplo de cadastro:
 }
 ```
 
+## API de contas bancárias
+
+| Método | Rota | Finalidade |
+| --- | --- | --- |
+| `POST` | `/api/contas` | Cria uma conta para um usuário existente. |
+| `GET` | `/api/contas/{id}` | Consulta uma conta. |
+| `PUT` | `/api/contas/{id}` | Atualiza agência e número. |
+| `DELETE` | `/api/contas/{id}` | Remove uma conta. |
+| `GET` | `/api/usuarios/{usuarioId}/contas` | Lista as contas de um usuário. |
+
+Exemplo de criação de conta:
+
+```json
+{
+  "usuarioId": "substitua-pelo-id-do-usuario",
+  "agencia": "0001",
+  "numero": "123456"
+}
+```
+
+Cada conta inicia com saldo `0.00`. O usuário não pode ser removido enquanto possuir contas associadas.
+
 ## Organização
 
 - `domain`: entidades, objetos de valor e contratos do domínio;

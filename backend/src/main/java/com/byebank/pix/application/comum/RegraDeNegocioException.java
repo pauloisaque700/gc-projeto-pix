@@ -1,4 +1,4 @@
-package com.byebank.pix.application.usuario;
+package com.byebank.pix.application.comum;
 
 public final class RegraDeNegocioException extends RuntimeException {
     public RegraDeNegocioException(String mensagem) {

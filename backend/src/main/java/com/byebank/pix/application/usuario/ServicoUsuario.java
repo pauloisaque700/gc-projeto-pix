@@ -1,5 +1,8 @@
 package com.byebank.pix.application.usuario;
 
+import com.byebank.pix.application.comum.RecursoNaoEncontradoException;
+import com.byebank.pix.application.comum.RegraDeNegocioException;
+import com.byebank.pix.domain.conta.RepositorioContaBancaria;
 import com.byebank.pix.domain.usuario.Documento;
 import com.byebank.pix.domain.usuario.Email;
 import com.byebank.pix.domain.usuario.RepositorioUsuario;
@@ -12,9 +15,11 @@ import java.util.UUID;
 @Service
 public class ServicoUsuario {
     private final RepositorioUsuario repositorioUsuario;
+    private final RepositorioContaBancaria repositorioConta;
 
-    public ServicoUsuario(RepositorioUsuario repositorioUsuario) {
+    public ServicoUsuario(RepositorioUsuario repositorioUsuario, RepositorioContaBancaria repositorioConta) {
         this.repositorioUsuario = repositorioUsuario;
+        this.repositorioConta = repositorioConta;
     }
 
     public Usuario cadastrar(CadastroUsuarioCommand comando) {
@@ -48,6 +53,10 @@ public class ServicoUsuario {
     }
 
     public void remover(UUID id) {
-        repositorioUsuario.remover(buscarPorId(id));
+        Usuario usuario = buscarPorId(id);
+        if (repositorioConta.existePorUsuarioId(usuario.getId())) {
+            throw new RegraDeNegocioException("Não é possível remover um usuário que possui contas bancárias.");
+        }
+        repositorioUsuario.remover(usuario);
     }
 }
