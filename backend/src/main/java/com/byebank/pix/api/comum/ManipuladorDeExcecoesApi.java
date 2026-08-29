@@ -1,7 +1,7 @@
 package com.byebank.pix.api.comum;
 
-import com.byebank.pix.application.usuario.RecursoNaoEncontradoException;
-import com.byebank.pix.application.usuario.RegraDeNegocioException;
+import com.byebank.pix.application.comum.RecursoNaoEncontradoException;
+import com.byebank.pix.application.comum.RegraDeNegocioException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
