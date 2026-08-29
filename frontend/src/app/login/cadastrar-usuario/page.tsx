@@ -1,0 +1,83 @@
+"use client"
+import Card from '../../../components/Card'
+import Tela from '../../../components/Tela'
+import SmartphoneHeader from '../../../components/SmartphoneHeader'
+import Input from '../../../components/Input'
+import BotaoGrande from '../../../components/BotaoGrande'
+import { User, Lock, Mail, Phone, CreditCard } from 'lucide-react'
+import { useState } from 'react'
+
+export default function Cadastro() {
+    const [nome, setNome] = useState('')
+    const [cpf, setCpf] = useState('')
+    const [email, setEmail] = useState('')
+    const [telefone, setTelefone] = useState('')
+    const [senha, setSenha] = useState('')
+    const [confirmarSenha, setConfirmarSenha] = useState('')
+
+    return (
+        <Tela>
+            <img src={"/bye.png"} className="w-60 h-10 object-contain mx-auto flex items-center justify-center mb-6"/>
+            <SmartphoneHeader title="Seja bem-vindo" backToUrl="/login/tela-login"/>
+            <div className="text-center text-sm text-gray-500 font-normal leading-relaxed max-w-xs mx-auto -mt-3">
+                Crie sua conta aqui no ByeBank!
+            </div>
+            <Card>
+                <Input 
+                    label="Nome completo" 
+                    placeholder="Seu nome completo" 
+                    icon={<User className="w-5 h-5 stroke-[1.8]" />} 
+                    type="text"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                />
+                <Input 
+                    label="CPF" 
+                    placeholder="000.000.000-00" 
+                    icon={<CreditCard className="w-5 h-5 stroke-[1.8]" />} 
+                    type="text"
+                    value={cpf}
+                    onChange={(e) => setCpf(e.target.value)}
+                />
+                <Input 
+                    label="E-mail" 
+                    placeholder="Digite seu e-mail" 
+                    icon={<Mail className="w-5 h-5 stroke-[1.8]" />} 
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                />
+                <Input 
+                    label="Telefone"
+                    placeholder="(00) 90000-0000"
+                    icon={<Phone className="w-5 h-5" />}
+                    type="tel"
+                    value={telefone}
+                    onChange={(e) => setTelefone(e.target.value)}
+                />
+                <Input 
+                    label="Senha"
+                    placeholder="••••••••"
+                    icon={<Lock className="w-5 h-5" />}
+                    type="password"
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                />
+                <Input 
+                    label="Confirmar senha"
+                    placeholder="••••••••"
+                    icon={<Lock className="w-5 h-5" />}
+                    type="password"
+                    value={confirmarSenha}
+                    onChange={(e) => setConfirmarSenha(e.target.value)}
+                />
+            </Card>
+            <BotaoGrande 
+                text="Cadastrar" 
+                bgClass="bg-[#4F46E5] hover:bg-[#4338CA]" 
+                textClass="text-white font-semibold"       
+                widthClass="w-full"                        
+            />
+        </Tela>
+    )
+}
