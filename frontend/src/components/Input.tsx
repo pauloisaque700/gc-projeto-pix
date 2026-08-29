@@ -3,8 +3,8 @@ import { ReactNode } from 'react';
 interface InputProps {
   label: string;
   placeholder: string;
-  icon: ReactNode; // Aceita o ícone do Lucide montado (ex: <Mail />)
-  type?: string;   // Tipo do input (ex: "text", "tel")
+  icon: ReactNode; 
+  type?: string;   
 }
 
 export default function Input({
@@ -20,7 +20,6 @@ export default function Input({
       </label>
       
       <div className="relative flex items-center">
-        {/* Ícone posicionado perfeitamente à esquerda */}
         <div className="absolute left-4 text-slate-400 flex items-center justify-center">
           {icon}
         </div>

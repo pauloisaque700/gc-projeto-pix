@@ -6,6 +6,8 @@ import Input from '../../../components/Input'
 import BotaoGrande from '../../../components/BotaoGrande'
 import { Icon } from 'lucide-react'
 import { User, Lock, Mail } from 'lucide-react'
+import Link from 'next/link'
+
 
 export default ()=>{
     return (
@@ -15,10 +17,11 @@ export default ()=>{
                  <User className="w-20 h-20 stroke-[1.8]" />
             </div>
             <SmartphoneHeader title="Bem-vindo de volta" backToUrl=""/>
-            <div className="text-center text-sm text-gray-500 font-normal leading-relaxed max-w-xs mx-auto -mt-3">
+            <div className="text-center text-sm text-gray-500 font-normal leading-relaxed max-w-xs mx-auto mb-10 ">
                 Acesse sua conta para gerenciar seus saldos
             </div>
-            <Card>
+            <div className='mb-3'>
+                <Card>
                 <Input 
                 label="E-mail" 
                 placeholder="Digite seu e-mail" 
@@ -32,12 +35,25 @@ export default ()=>{
                     type="password"
                 />
             </Card>
+            </div>
+    
             <BotaoGrande 
                 text="Entrar" 
                 bgClass="bg-[#4F46E5] hover:bg-[#4338CA]" 
                 textClass="text-white font-semibold"       
                 widthClass="w-full"                        
             />
+            <p className='mt-3 text-center text-gray-500 font-normal leading-relaxed' >
+                <span>
+                 Caso seja sua primeira vez 
+                <Link
+                    href={{pathname: '/criarconta'}} //falta só ajustar o href, nessa branch não tem os outros arquivos
+                    className="text-blue-600 font-semibold hover:underline cursor-pointer ms-2"
+                >
+                    Crie conta
+                 </Link>
+                </span>
+            </p>
         </Tela>
     )
 }
