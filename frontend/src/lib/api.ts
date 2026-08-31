@@ -1,0 +1,162 @@
+// Client central de acesso à API do backend (Spring Boot).
+// Mantém os tipos alinhados com os DTOs em backend/src/main/java/com/byebank/pix/api.
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+
+export interface ErroApi {
+  instante: string;
+  status: number;
+  erro: string;
+  mensagem: string;
+  campos: Record<string, string>;
+}
+
+/** Erro lançado quando a API responde com um status de erro (4xx/5xx). */
+export class ApiError extends Error {
+  status: number;
+  campos: Record<string, string>;
+
+  constructor(erro: ErroApi) {
+    super(erro.mensagem);
+    this.name = "ApiError";
+    this.status = erro.status;
+    this.campos = erro.campos ?? {};
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new Error(
+      "Não foi possível conectar ao servidor. Verifique se o backend está em execução."
+    );
+  }
+
+  // DELETE bem-sucedido retorna 204 sem corpo.
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const dados = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    if (dados && typeof dados === "object" && "mensagem" in dados) {
+      throw new ApiError(dados as ErroApi);
+    }
+    throw new Error(`Erro inesperado ao chamar ${path} (status ${response.status}).`);
+  }
+
+  return dados as T;
+}
+
+// ---------------------------------------------------------------------------
+// Usuário
+// ---------------------------------------------------------------------------
+
+export type TipoDocumento = "CPF" | "CNPJ";
+
+export interface UsuarioResponse {
+  id: string;
+  nomeCompleto: string;
+  tipoDocumento: TipoDocumento;
+  documento: string;
+  email: string;
+  telefone: string;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface CriarUsuarioRequest {
+  nomeCompleto: string;
+  tipoDocumento: TipoDocumento;
+  documento: string;
+  email: string;
+  telefone: string;
+}
+
+export interface AtualizarUsuarioRequest {
+  nomeCompleto: string;
+  email: string;
+  telefone: string;
+}
+
+export function criarUsuario(dados: CriarUsuarioRequest) {
+  return request<UsuarioResponse>("/api/usuarios", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function buscarUsuario(id: string) {
+  return request<UsuarioResponse>(`/api/usuarios/${id}`);
+}
+
+export function atualizarUsuario(id: string, dados: AtualizarUsuarioRequest) {
+  return request<UsuarioResponse>(`/api/usuarios/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function removerUsuario(id: string) {
+  return request<void>(`/api/usuarios/${id}`, { method: "DELETE" });
+}
+
+// ---------------------------------------------------------------------------
+// Conta bancária
+// ---------------------------------------------------------------------------
+
+export interface ContaBancariaResponse {
+  id: string;
+  usuarioId: string;
+  agencia: string;
+  numero: string;
+  saldo: number;
+  criadaEm: string;
+  atualizadaEm: string;
+}
+
+export interface CriarContaBancariaRequest {
+  usuarioId: string;
+  agencia: string;
+  numero: string;
+}
+
+export interface AtualizarContaBancariaRequest {
+  agencia: string;
+  numero: string;
+}
+
+export function criarConta(dados: CriarContaBancariaRequest) {
+  return request<ContaBancariaResponse>("/api/contas", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function buscarConta(id: string) {
+  return request<ContaBancariaResponse>(`/api/contas/${id}`);
+}
+
+export function listarContasDoUsuario(usuarioId: string) {
+  return request<ContaBancariaResponse[]>(`/api/usuarios/${usuarioId}/contas`);
+}
+
+export function atualizarConta(id: string, dados: AtualizarContaBancariaRequest) {
+  return request<ContaBancariaResponse>(`/api/contas/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function removerConta(id: string) {
+  return request<void>(`/api/contas/${id}`, { method: "DELETE" });
+}
