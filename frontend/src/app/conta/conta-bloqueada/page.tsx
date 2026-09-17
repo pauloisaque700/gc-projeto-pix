@@ -6,7 +6,6 @@ export default function ContaBloqueadaPage() {
   return (
     <Tela>
       <div className="flex flex-col flex-1 justify-between">
-        {/* Conteúdo central */}
         <div className="flex flex-col items-center text-center gap-6 mt-16">
           <div className="flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50">
             <AlertCircle className="w-8 h-8 text-slate-900 stroke-2" />
@@ -21,7 +20,6 @@ export default function ContaBloqueadaPage() {
           </p>
         </div>
 
-        {/* Ação */}
         <Link
           href="/"
           className="w-full text-center rounded-2xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-sm font-semibold py-4 transition-colors"
