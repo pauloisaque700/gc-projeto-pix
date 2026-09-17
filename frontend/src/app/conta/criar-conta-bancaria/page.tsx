@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type TipoConta = "corrente" | "poupanca";
 
@@ -17,9 +18,20 @@ export default function CriarContaBancaria({
   onVoltar,
   onCriarConta,
 }: CriarContaBancariaProps) {
+  const router = useRouter();
   const [tipoConta, setTipoConta] = useState<TipoConta>("corrente");
   const [agencia, setAgencia] = useState<string>("");
   const [conta, setConta] = useState<string>("");
+
+  const handleVoltar = () => {
+    // Se quem usa o componente passar onVoltar, respeita essa função.
+    // Caso contrário, volta para a página anterior no histórico.
+    if (onVoltar) {
+      onVoltar();
+    } else {
+      router.back();
+    }
+  };
 
   const handleAgenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Mantém apenas dígitos, útil para número de agência
@@ -44,7 +56,7 @@ export default function CriarContaBancaria({
         <header style={styles.header}>
           <button
             type="button"
-            onClick={onVoltar}
+            onClick={handleVoltar}
             style={styles.botaoVoltar}
             aria-label="Voltar"
           >
