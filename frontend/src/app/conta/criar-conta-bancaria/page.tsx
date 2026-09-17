@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Tela from "../../../components/Tela";
 
 type TipoConta = "corrente" | "poupanca";
 
