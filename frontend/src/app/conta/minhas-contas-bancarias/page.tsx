@@ -105,7 +105,7 @@ export default function MinhasContasBancarias() {
 
   return (
     <Tela>
-      <SmartphoneHeader title="Minhas Contas" backToUrl="/login/tela-perfil" />
+      <SmartphoneHeader title="Minhas Contas" backToUrl="/tela-principal" />
 
       <div className="flex flex-col gap-6 px-1 py-2 font-sans w-full max-w-[400px]">
         <div className="flex flex-col gap-1.5">
