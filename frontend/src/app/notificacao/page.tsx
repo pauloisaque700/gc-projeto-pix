@@ -18,7 +18,7 @@ export default function Notificacoes() {
     <Tela>
       <SmartphoneHeader
         title="Tela de notificações"
-        backToUrl="/login/tela-perfil"
+        backToUrl="/tela-principal"
       />
 
       <div className="w-full max-w-[400px] px-1 py-2 font-sans">

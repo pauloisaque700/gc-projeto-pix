@@ -24,7 +24,6 @@ interface UsuarioData {
   saldo: number
   agencia: string
   conta: string
-  categoria: string
   transacoes: {
     id: string
     tipo: 'PIX enviado' | 'PIX recebido' | 'Pagamento'
@@ -87,7 +86,7 @@ export default function Inicio() {
           <button
             type="button"
             onClick={() => router.push("/notificacao")}
-            className="w-11 h-11 rounded-full bg-[#161F31] border border-[#263650] flex items-center justify-center relative"
+            className="w-11 h-11 rounded-full bg-[#4F46E5] hover:bg-[#4338CA] flex items-center justify-center relative"
           >
             <Bell className="w-5 h-5 text-white" strokeWidth={2} />
             <span className="absolute ml-5 mb-5 w-3 h-3 rounded-full bg-[#00E889] border-2 border-[#161F31]" />
@@ -101,7 +100,7 @@ export default function Inicio() {
         >
           <div className="flex flex-col">
             <div className="flex items-center justify-between">
-              <span className="text-xl text-slate-400">SALDO DISPONÍVEL</span>
+              <span className="text-xl text-[#4F46E5]">SALDO DISPONÍVEL</span>
               <Eye className="w-7 h-7 text-slate-400" strokeWidth={2} />
             </div>
 
@@ -115,10 +114,6 @@ export default function Inicio() {
               <span className="text-lg text-slate-400">
                 Ag {usuario?.agencia} · Conta {usuario?.conta}
               </span>
-
-              <span className="text-lg font-bold text-[#00E889]">
-                {usuario?.categoria || "EMERALD"}
-              </span>
             </div>
           </div>
         </Card>
@@ -127,10 +122,10 @@ export default function Inicio() {
           <button
             type="button"
             onClick={() => router.push("/pix/transferir-pix")}
-            className="h-[132px] rounded-[26px] bg-[#161F31] border border-[#263650] p-5 flex flex-col items-start justify-between"
+            className="h-[132px] rounded-[26px] bg-[#4F46E5] hover:bg-[#4338CA] p-5 flex flex-col items-start justify-between"
           >
             <div className="w-14 h-14 rounded-[17px] bg-[#0B3A3B] flex items-center justify-center">
-              <ArrowUp className="w-8 h-8 text-[#00E889]" strokeWidth={2.5} />
+              <ArrowUp className="w-8 h-8" strokeWidth={2.5} />
             </div>
             <span className="text-xl font-bold text-white">Enviar PIX</span>
           </button>
@@ -138,10 +133,10 @@ export default function Inicio() {
           <button
             type="button"
             onClick={() => router.push("/pix/receber")}
-            className="h-[132px] rounded-[26px] bg-[#161F31] border border-[#263650] p-5 flex flex-col items-start justify-between"
+            className="h-[132px] rounded-[26px] bg-[#4F46E5] hover:bg-[#4338CA] p-5 flex flex-col items-start justify-between"
           >
             <div className="w-14 h-14 rounded-[17px] bg-[#0B3A3B] flex items-center justify-center">
-              <ArrowDown className="w-8 h-8 text-[#00E889]" strokeWidth={2.5} />
+              <ArrowDown className="w-8 h-8" strokeWidth={2.5} />
             </div>
             <span className="text-xl font-bold text-white">Receber PIX</span>
           </button>
@@ -149,10 +144,10 @@ export default function Inicio() {
           <button
             type="button"
             onClick={() => router.push("/pix/minhas-chaves-pix")}
-            className="h-[132px] rounded-[26px] bg-[#161F31] border border-[#263650] p-5 flex flex-col items-start justify-between"
+            className="h-[132px] rounded-[26px] bg-[#4F46E5] hover:bg-[#4338CA] p-5 flex flex-col items-start justify-between"
           >
-            <div className="w-14 h-14 rounded-[17px] bg-[#0B3A3B] flex items-center justify-center">
-              <KeyRound className="w-8 h-8 text-[#00E889]" strokeWidth={2.5} />
+            <div className="w-14 h-14 rounded-[17px]  bg-[#0B3A3B] flex items-center justify-center">
+              <KeyRound className="w-8 h-8" strokeWidth={2.5} />
             </div>
             <span className="text-xl font-bold text-white">Minhas Chaves</span>
           </button>
@@ -160,10 +155,10 @@ export default function Inicio() {
           <button
             type="button"
             onClick={() => router.push("/conta/minhas-contas-bancarias")}
-            className="h-[132px] rounded-[26px] bg-[#161F31] border border-[#263650] p-5 flex flex-col items-start justify-between"
+            className="h-[132px] rounded-[26px] bg-[#4F46E5] hover:bg-[#4338CA] p-5 flex flex-col items-start justify-between"
           >
             <div className="w-14 h-14 rounded-[17px] bg-[#0B3A3B] flex items-center justify-center">
-              <CreditCard className="w-8 h-8 text-[#00E889]" strokeWidth={2.5} />
+              <CreditCard className="w-8 h-8" strokeWidth={2.5} />
             </div>
             <span className="text-xl font-bold text-white">Minhas Contas</span>
           </button>
@@ -174,7 +169,7 @@ export default function Inicio() {
             <h2 className="text-2xl font-bold text-slate-900">
               Últimas transações
             </h2>
-            <button type="button" className="text-lg font-bold text-[#00C978]">
+            <button type="button" className="text-lg font-bold text-[#4F46E5]">
               Ver tudo
             </button>
           </div>
@@ -227,7 +222,7 @@ export default function Inicio() {
               onClick={() => router.push("/conta/minhas-contas-bancarias")}
               className="flex flex-col items-center gap-1.5 text-slate-400"
             >
-              <Wallet className="w-6 h-6" strokeWidth={2.5} />
+              <Wallet className="w-6 h-6 " strokeWidth={2.5} />
               <span className="text-xs">Contas</span>
             </button>
 
