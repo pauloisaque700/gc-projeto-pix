@@ -67,7 +67,7 @@ export default function MinhasChavesPix() {
 
   return (
     <Tela>
-      <SmartphoneHeader title="Minhas Chaves PIX" backToUrl="/dashboard" />
+      <SmartphoneHeader title="Minhas Chaves PIX" backToUrl="/tela-principal" />
 
       <div className="flex flex-col gap-6 px-1 py-2 font-sans w-full max-w-[400px]">
         

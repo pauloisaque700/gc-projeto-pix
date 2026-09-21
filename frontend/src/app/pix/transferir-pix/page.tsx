@@ -37,7 +37,7 @@ export default function TransferirPix() {
 
   return (
     <Tela>
-      <SmartphoneHeader title="TRANSFERIR PIX" backToUrl="/pix" />
+      <SmartphoneHeader title="TRANSFERIR PIX" backToUrl="/tela-principal" />
 
       <Card paddingClass="p-5" bgClass="bg-white">
         <div className="flex flex-col gap-5">
