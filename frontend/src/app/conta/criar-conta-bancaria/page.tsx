@@ -51,7 +51,7 @@ export default function CriarContaBancaria({
   };
 
   return (
-    <div style={styles.tela}>
+    <Tela>
       <div style={styles.container}>
         {/* Cabeçalho */}
         <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/login/tela-perfil" />
@@ -176,23 +176,13 @@ export default function CriarContaBancaria({
           Criar conta
         </button>
       </div>
-    </div>
+    </Tela>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  tela: {
-    minHeight: "100vh",
-    backgroundColor: "#F5F6FA",
-    display: "flex",
-    justifyContent: "center",
-    fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-  },
   container: {
     width: "100%",
-    maxWidth: 400,
-    padding: "24px 20px",
     boxSizing: "border-box",
   },
   header: {
