@@ -21,7 +21,11 @@ public class ManipuladorDeExcecoesApi {
         return resposta(HttpStatus.NOT_FOUND, excecao.getMessage(), Map.of());
     }
 
-    @ExceptionHandler({RegraDeNegocioException.class, IllegalArgumentException.class})
+    // IllegalStateException foi incluída aqui porque regras de domínio como saldo
+    // insuficiente (ContaBancaria.debitar) e chave PIX já associada/inválida
+    // (ChavePix.associar) são sinalizadas com esse tipo, e sem esse tratamento
+    // elas resultavam em erro 500 não tratado em vez de uma resposta 422 clara.
+    @ExceptionHandler({RegraDeNegocioException.class, IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ErroApi> tratarRegraDeNegocio(RuntimeException excecao) {
         return resposta(HttpStatus.UNPROCESSABLE_CONTENT, excecao.getMessage(), Map.of());
     }
