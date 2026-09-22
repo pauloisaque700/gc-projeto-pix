@@ -9,6 +9,7 @@ import com.byebank.pix.domain.comum.EntidadeBase;
 public abstract class ChavePix extends EntidadeBase{
     private final String valor;
     private final Instant criadaEm;
+    private UUID contaId;
 
     protected ChavePix(UUID id, String valor, Instant criadaEm) {
         super(id);
@@ -18,8 +19,24 @@ public abstract class ChavePix extends EntidadeBase{
 
     public abstract boolean validar();
 
+    public abstract TipoChavePix getTipo();
+
     public void associar(){
-    //falta implemetar    
+        if (!validar()) {
+            throw new IllegalStateException("Não é possível associar uma chave PIX com formato inválido.");
+        }
+        if (this.contaId != null) {
+            throw new IllegalStateException("Esta chave PIX já está associada a uma conta.");
+        }
+        this.contaId = Objects.requireNonNull(contaId, "A conta para associação é obrigatória.");
+    }
+
+    public boolean estaAssociada() {
+        return contaId != null;
+    }
+ 
+    public UUID getContaId() {
+        return contaId;
     }
 
     public String getValor() {

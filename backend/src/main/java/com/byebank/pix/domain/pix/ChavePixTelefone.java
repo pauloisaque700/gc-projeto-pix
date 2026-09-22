@@ -1,11 +1,18 @@
 package com.byebank.pix.domain.pix;
 
 import java.time.Instant;
+// import java.util.Locale;
 import java.util.UUID;
 
-public class ChavePixTelefone extends ChavePix{
+import com.byebank.pix.domain.usuario.Telefone;
+
+public final class ChavePixTelefone extends ChavePix{
     public ChavePixTelefone(UUID id, String valor, Instant criadaEm){
-        super(id, valor, criadaEm);
+        super(id, normalizar(valor), criadaEm);
+    }
+
+    private static String normalizar(String valor) {
+        return valor == null ? null : valor.replaceAll("\\D", "");
     }
 
     @Override
@@ -13,7 +20,16 @@ public class ChavePixTelefone extends ChavePix{
         if(getValor() == null || getValor().isBlank()){
             return false;
         }
-        String apenasNumero = getValor().replaceAll("\\D", "");
-        return apenasNumero.length() >= 10 && apenasNumero.length() <= 11;
+        try {
+            Telefone.criar(getValor());
+            return true;
+        } catch (IllegalArgumentException excecaoDeFormatoInvalido) {
+            return false;
+        }
+    }
+
+    @Override
+    public TipoChavePix getTipo() {
+        return TipoChavePix.TELEFONE;
     }
 }
