@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import SmartphoneHeader from "@/src/components/SmartphoneHeader";
 
 type TipoConta = "corrente" | "poupanca";
 
@@ -50,20 +51,10 @@ export default function CriarContaBancaria({
   };
 
   return (
-    <div style={styles.tela}>
+    <Tela>
       <div style={styles.container}>
         {/* Cabeçalho */}
-        <header style={styles.header}>
-          <button
-            type="button"
-            onClick={handleVoltar}
-            style={styles.botaoVoltar}
-            aria-label="Voltar"
-          >
-            ←
-          </button>
-          <h1 style={styles.tituloHeader}>Criar Conta Bancária</h1>
-        </header>
+        <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/login/tela-perfil" />
 
         {/* Introdução */}
         <section style={styles.introducao}>
@@ -185,23 +176,13 @@ export default function CriarContaBancaria({
           Criar conta
         </button>
       </div>
-    </div>
+    </Tela>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  tela: {
-    minHeight: "100vh",
-    backgroundColor: "#F5F6FA",
-    display: "flex",
-    justifyContent: "center",
-    fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-  },
   container: {
     width: "100%",
-    maxWidth: 400,
-    padding: "24px 20px",
     boxSizing: "border-box",
   },
   header: {

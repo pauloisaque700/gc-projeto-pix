@@ -92,7 +92,7 @@ export default function Perfil() {
 
   return (
     <Tela>
-      <SmartphoneHeader title="Perfil" backToUrl="/conta/minhas-contas-bancarias" />
+      <SmartphoneHeader title="Perfil" backToUrl="/tela-principal" />
 
       <div className="relative w-28 h-28 mx-auto my-4 mb-6">
         <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-2 border-gray-100 shadow-sm">
