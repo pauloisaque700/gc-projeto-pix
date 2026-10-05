@@ -9,7 +9,7 @@ export default function ChavePixSuspensaPage() {
   return (
     <Tela>
       <SmartphoneHeader
-        title="chave-pix-suspensa"
+        title="Chave Pix Suspensa"
         backToUrl="/pix/minhas-chaves-pix"
       />
 
