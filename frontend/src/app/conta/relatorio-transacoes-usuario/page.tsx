@@ -71,7 +71,7 @@ export default function TransacoesPage() {
     <Tela>
       <SmartphoneHeader 
         title="Transações do Usuário" 
-        backToUrl="/dashboard"
+        backToUrl="/conta/minhas-contas-bancarias"
       />
 
       {/* Seção Filtros */}
