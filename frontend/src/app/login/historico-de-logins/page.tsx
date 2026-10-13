@@ -39,7 +39,7 @@ export default function HistoricoDeLoginsPage() {
     <Tela>
       <SmartphoneHeader
         title="Histórico de Logins"
-        backToUrl="/tela-principal"
+        backToUrl="/conta/minhas-contas-bancarias"
       />
 
       <div className="flex flex-col flex-1 min-h-0 font-sans">

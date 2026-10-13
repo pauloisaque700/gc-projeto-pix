@@ -5,34 +5,26 @@ import { useRouter } from "next/navigation"
 import Tela from "../../../components/Tela"
 import SmartphoneHeader from "../../../components/SmartphoneHeader"
 import Card from "../../../components/Card"
-import Input from "../../../components/Input"
 import BotaoGrande from "../../../components/BotaoGrande"
-import { Wallet, Plus, AlertCircle, Trash2, Hash, Building2 } from "lucide-react"
+import { Plus, AlertCircle, Trash2 } from "lucide-react"
 import {
   ContaBancariaResponse,
-  criarConta,
   listarContasDoUsuario,
   removerConta,
-  ApiError,
 } from "../../../lib/api"
 import { obterUsuarioLogado } from "../../../lib/session"
 
 export default function MinhasContasBancarias() {
   const router = useRouter()
 
+  // Estados do Backend
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [contas, setContas] = useState<ContaBancariaResponse[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-
-  const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [agencia, setAgencia] = useState('')
-  const [numero, setNumero] = useState('')
-  const [criando, setCriando] = useState(false)
-  const [erroFormulario, setErroFormulario] = useState<string | null>(null)
-
   const [removendoId, setRemovendoId] = useState<string | null>(null)
 
+  // Função para carregar as contas da API
   async function carregarContas(idUsuario: string) {
     try {
       setCarregando(true)
@@ -46,6 +38,7 @@ export default function MinhasContasBancarias() {
     }
   }
 
+  // Verifica a sessão do usuário ao carregar
   useEffect(() => {
     const idSalvo = obterUsuarioLogado()
     if (!idSalvo) {
@@ -57,36 +50,7 @@ export default function MinhasContasBancarias() {
     carregarContas(idSalvo)
   }, [])
 
-  const handleCriarConta = async () => {
-    if (!usuarioId) return
-
-    setErroFormulario(null)
-
-    if (!agencia || !numero) {
-      setErroFormulario('Informe a agência e o número da conta.')
-      return
-    }
-
-    setCriando(true)
-    try {
-      await criarConta({ usuarioId, agencia, numero })
-      setAgencia('')
-      setNumero('')
-      setMostrarFormulario(false)
-      await carregarContas(usuarioId)
-    } catch (erroCapturado) {
-      if (erroCapturado instanceof ApiError) {
-        setErroFormulario(erroCapturado.message)
-      } else if (erroCapturado instanceof Error) {
-        setErroFormulario(erroCapturado.message)
-      } else {
-        setErroFormulario('Não foi possível criar a conta. Tente novamente.')
-      }
-    } finally {
-      setCriando(false)
-    }
-  }
-
+  // Função para deletar uma conta bancária
   const handleRemoverConta = async (id: string) => {
     if (!usuarioId) return
     setRemovendoId(id)
@@ -108,13 +72,15 @@ export default function MinhasContasBancarias() {
       <SmartphoneHeader title="Minhas Contas" backToUrl="/tela-principal" />
 
       <div className="flex flex-col gap-6 px-1 py-2 font-sans w-full max-w-[400px]">
+        {/* Cabeçalho de Boas-vindas */}
         <div className="flex flex-col gap-1.5">
-          <h2 className="text-base font-bold text-slate-700">Contas bancárias</h2>
+          <h2 className="text-lg font-bold text-slate-800">Olá, João</h2>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Gerencie as contas vinculadas ao seu perfil ByeBank.
+            Gerencie e movimente seus saldos ByeBank em tempo real de forma segura.
           </p>
         </div>
 
+        {/* Mensagem de Erro Global */}
         {erro && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-sm text-red-700">
             <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5 stroke-[2]" />
@@ -122,104 +88,141 @@ export default function MinhasContasBancarias() {
           </div>
         )}
 
+        {/* Indicador de Carregamento */}
         {carregando ? (
           <div className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4F46E5]"></div>
           </div>
         ) : (
+          /* Lista de Contas da API */
           <div className="flex flex-col gap-4">
             {usuarioId && contas.length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-4">Nenhuma conta cadastrada ainda.</p>
+              <p className="text-sm text-slate-400 text-center py-4">
+                Nenhuma conta cadastrada ainda.
+              </p>
             )}
 
-            {contas.map((conta) => (
+            {contas.map((conta, index) => (
               <Card
                 key={conta.id}
-                paddingClass="p-4"
-                roundedClass="rounded-2xl"
-                borderClass="border border-slate-100/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)]"
+                paddingClass="p-5"
+                roundedClass="rounded-3xl"
+                borderClass="border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.03)] bg-white"
               >
-                <div className="w-full flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-full bg-[#EEF2FF] flex items-center justify-center shrink-0">
-                      <Wallet className="w-5 h-5 text-[#4F46E5] stroke-[1.8]" />
+                <div className="flex flex-col gap-4 w-full">
+                  {/* Topo do Card: Tag e Banco */}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                        index % 2 === 0
+                          ? 'bg-[#EEF2FF] text-[#4F46E5]'
+                          : 'bg-[#ECFDF5] text-[#059669]'
+                      }`}
+                    >
+                      {index % 2 === 0 ? 'Conta Corrente' : 'Conta Poupança'}
+                    </span>
+                    <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]"></span>
+                      ByeBank
+                    </span>
+                  </div>
+
+                  {/* Agência, Conta e Saldo + Botão de Deletar */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex gap-6 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                      <span>
+                        Agência{' '}
+                        <strong className="text-slate-700 font-semibold">
+                          {conta.agencia}
+                        </strong>
+                      </span>
+                      <span>
+                        Conta{' '}
+                        <strong className="text-slate-700 font-semibold">
+                          {conta.numero}
+                        </strong>
+                      </span>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-800">
-                        Ag. {conta.agencia} • Conta {conta.numero}
-                      </span>
-                      <span className="text-xs text-slate-400 mt-0.5">
-                        Saldo: R$ {formatarSaldo(conta.saldo)}
-                      </span>
+
+                    <div className="mt-2 flex items-center justify-between">
+                      <div>
+                        <span className="text-xs text-slate-400 font-medium">
+                          Saldo disponível
+                        </span>
+                        <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
+                          R$ {formatarSaldo(conta.saldo)}
+                        </h3>
+                      </div>
+
+                      {/* Botão para Deletar a Conta */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoverConta(conta.id)}
+                        disabled={removendoId === conta.id}
+                        aria-label="Remover conta"
+                        className="p-2 text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
+                        title="Remover conta"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoverConta(conta.id)}
-                    disabled={removendoId === conta.id}
-                    aria-label="Remover conta"
-                    className="p-2 text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+
+                  {/* Botões Internos do Card */}
+                  <div className="flex flex-col gap-2.5 pt-1">
+                    <BotaoGrande
+                      text="Acessar conta"
+                      bgClass="bg-[#EEF2FF] hover:bg-[#E0E7FF]"
+                      textClass="text-[#4F46E5] font-semibold text-sm"
+                      widthClass="w-full"
+                      onClick={() => router.push(`/conta/${conta.id}`)}
+                    />
+                    <BotaoGrande
+                      text="Editar Conta"
+                      bgClass="bg-[#EEF2FF] hover:bg-[#E0E7FF]"
+                      textClass="text-[#4F46E5] font-semibold text-sm"
+                      widthClass="w-full"
+                      onClick={() => router.push(`/conta/editar/${conta.id}`)}
+                    />
+                  </div>
                 </div>
               </Card>
             ))}
           </div>
         )}
 
-        {usuarioId && mostrarFormulario && (
-          <Card paddingClass="p-4" roundedClass="rounded-2xl">
-            <div className="flex flex-col gap-4">
-              <Input
-                label="Agência"
-                placeholder="0001"
-                icon={<Building2 className="w-5 h-5 stroke-[1.8]" />}
-                value={agencia}
-                onChange={(e) => setAgencia(e.target.value.replace(/\D/g, ''))}
-              />
-              <Input
-                label="Número da conta"
-                placeholder="123456"
-                icon={<Hash className="w-5 h-5 stroke-[1.8]" />}
-                value={numero}
-                onChange={(e) => setNumero(e.target.value.replace(/\D/g, ''))}
-              />
+        {/* Botões Inferiores com Borda Tracejada mantidos exatamente como você configurou */}
+        <div className="flex flex-col gap-3 mt-2">
+          <BotaoGrande
+            text="Criar nova conta"
+            bgClass="bg-transparent hover:bg-slate-50/50"
+            borderClass="border-2 border-dashed border-[#4F46E5]/50"
+            textClass="text-[#4F46E5] font-semibold text-sm"
+            widthClass="w-full"
+            icon={<Plus className="w-4 h-4 stroke-[2.5]" />}
+            onClick={() => router.push('/conta/criar-conta-bancaria')}
+          />
 
-              {erroFormulario && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-sm text-red-700">
-                  <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5 stroke-[2]" />
-                  <p className="text-xs text-red-600 leading-relaxed">{erroFormulario}</p>
-                </div>
-              )}
+          <BotaoGrande
+            text="Gerar Relatório de Transações do Usuário"
+            bgClass="bg-transparent hover:bg-slate-50/50"
+            borderClass="border-2 border-dashed border-[#4F46E5]/50"
+            textClass="text-[#4F46E5] font-semibold text-sm text-center"
+            widthClass="w-full"
+            onClick={() => router.push('/conta/relatorio-transacoes-usuario')}
+          />
 
-              <BotaoGrande
-                text="Criar conta"
-                bgClass="bg-[#4F46E5] hover:bg-[#4338CA]"
-                textClass="text-white font-semibold"
-                widthClass="w-full"
-                isLoading={criando}
-                disabled={!agencia || !numero || criando}
-                onClick={handleCriarConta}
-              />
-            </div>
-          </Card>
-        )}
+          <BotaoGrande
+            text="Consultar histórico de Logins"
+            bgClass="bg-transparent hover:bg-slate-50/50"
+            borderClass="border-2 border-dashed border-[#4F46E5]/50"
+            textClass="text-[#4F46E5] font-semibold text-sm text-center"
+            widthClass="w-full"
+            onClick={() => router.push('/login/historico-de-logins')}
+          />
+        </div>
 
-        {usuarioId && (
-          <div className="flex flex-col gap-1 mt-2">
-            <BotaoGrande
-              text={mostrarFormulario ? "Cancelar" : "Adicionar conta"}
-              bgClass={mostrarFormulario ? "bg-white hover:bg-slate-50" : "bg-[#4F46E5] hover:bg-[#4338CA]"}
-              borderClass={mostrarFormulario ? "border border-slate-200" : "border border-transparent"}
-              textClass={mostrarFormulario ? "text-slate-600 font-semibold" : "text-white font-semibold"}
-              widthClass="w-full"
-              icon={!mostrarFormulario ? <Plus className="w-4 h-4 stroke-[2.5]" /> : undefined}
-              onClick={() => setMostrarFormulario((valor) => !valor)}
-            />
-          </div>
-        )}
-
+        {/* Botão de segurança caso não haja usuário autenticado */}
         {!usuarioId && !carregando && (
           <BotaoGrande
             text="Ir para cadastro"
