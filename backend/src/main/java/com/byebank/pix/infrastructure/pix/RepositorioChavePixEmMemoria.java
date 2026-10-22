@@ -9,7 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public class RepositorioChavePixEmMemoria implements RepositorioChavePix {
     private final Map<UUID, ChavePix> chavesPorId = new ConcurrentHashMap<>();
     private final Map<String, UUID> idsPorValor = new ConcurrentHashMap<>();

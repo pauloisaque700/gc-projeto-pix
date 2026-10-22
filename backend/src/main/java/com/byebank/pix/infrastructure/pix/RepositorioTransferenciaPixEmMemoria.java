@@ -2,7 +2,6 @@ package com.byebank.pix.infrastructure.pix;
 
 import com.byebank.pix.domain.pix.RepositorioTransferenciaPix;
 import com.byebank.pix.domain.pix.TransferenciaPix;
-import org.springframework.stereotype.Repository;
 
 import java.util.Comparator;
 import java.util.List;
@@ -10,7 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.stereotype.Repository; 
 
+@Repository
 public class RepositorioTransferenciaPixEmMemoria implements RepositorioTransferenciaPix {
     private final Map<UUID, TransferenciaPix> transferenciasPorId = new ConcurrentHashMap<>();
 
