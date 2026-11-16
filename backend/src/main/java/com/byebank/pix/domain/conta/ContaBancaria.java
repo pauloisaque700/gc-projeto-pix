@@ -1,5 +1,6 @@
 package com.byebank.pix.domain.conta;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -44,7 +45,7 @@ public final class ContaBancaria {
     public static ContaBancaria criar(UUID usuarioId, String agencia, String numero, TipoConta tipoConta) {
         Instant agora = Instant.now();
         return new ContaBancaria(UUID.randomUUID(), usuarioId, agencia, numero, Dinheiro.zero(),
-                tipoConta, Dinheiro.zero(), null, StatusConta.ATIVA, agora, agora);
+                tipoConta, Dinheiro.de(new BigDecimal("1000.00")), null, StatusConta.ATIVA, agora, agora);
     }
 
     public synchronized void definirLimiteDiario(Dinheiro novoLimite) {

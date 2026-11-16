@@ -52,7 +52,7 @@ class ContaBancariaControllerTest {
                 .andExpect(jsonPath("$.nomeTitular").value("Maria da Silva"));
         mvc.perform(get("/api/contas/{id}", contaId))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.tipoConta").value("CORRENTE"))
-                .andExpect(jsonPath("$.limiteDiario").value(0)).andExpect(jsonPath("$.status").value("ATIVA"));
+                .andExpect(jsonPath("$.limiteDiario").value(1000)).andExpect(jsonPath("$.status").value("ATIVA"));
         mvc.perform(get("/api/usuarios/{id}/contas", usuarioId))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].nomeTitular").value("Maria da Silva"));
         mvc.perform(put("/api/contas/{id}", contaId).contentType(MediaType.APPLICATION_JSON)

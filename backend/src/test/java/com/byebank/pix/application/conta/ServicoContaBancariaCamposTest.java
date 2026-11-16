@@ -52,7 +52,7 @@ class ServicoContaBancariaCamposTest {
 
         assertEquals(TipoConta.CORRENTE, conta.getTipoConta());
         assertEquals(StatusConta.ATIVA, conta.getStatus());
-        assertEquals(new BigDecimal("0.00"), conta.getLimiteDiario().valor());
+        assertEquals(new BigDecimal("1000.00"), conta.getLimiteDiario().valor());
         assertNull(conta.getNotificacao());
     }
 

@@ -16,6 +16,13 @@ class DocumentoTest {
     }
 
     @Test
+    void deveAceitarCpfValidoSemPontuacao() {
+        Documento documento = Documento.criar(TipoDocumento.CPF, "52998224725");
+
+        assertEquals("52998224725", documento.valor());
+    }
+
+    @Test
     void deveAceitarCnpjValido() {
         assertDoesNotThrow(() -> Documento.criar(TipoDocumento.CNPJ, "11.222.333/0001-81"));
     }

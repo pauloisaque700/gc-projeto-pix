@@ -87,15 +87,46 @@ export default function EditarConta() {
     if (!usuarioId || carregando || salvando) return
     setErro('')
     setSucesso('')
-    const limiteNumerico = Number(limite.replace(/\D/g, '')) / 100
-    if (conta && (!limite || !Number.isFinite(limiteNumerico))) {
+    const nomeNormalizado = name.trim()
+    const emailNormalizado = email.trim()
+    const telefoneNumerico = telefone.replace(/\D/g, '')
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)
+    if (!nomeNormalizado || nomeNormalizado.length > 150) {
+      setErro('Informe um nome válido com até 150 caracteres.')
+      return
+    }
+    if (!emailValido) {
+      setErro('Informe um e-mail válido.')
+      return
+    }
+    if (telefoneNumerico.length !== 10 && telefoneNumerico.length !== 11) {
+      setErro('Informe um telefone válido com DDD.')
+      return
+    }
+
+    const digitosLimite = limite.replace(/\D/g, '')
+    const limiteNumerico = Number(digitosLimite) / 100
+    if (conta && (!digitosLimite || !Number.isFinite(limiteNumerico) || limiteNumerico < 0)) {
       setErro('Informe um limite diário válido.')
       return
     }
+    if (conta && (!/^\d{1,10}$/.test(agencia) || !/^\d{1,20}$/.test(numeroConta))) {
+      setErro('Informe uma agência e um número de conta válidos.')
+      return
+    }
+    if (conta && notificacao !== null && notificacao !== 'EMAIL' && notificacao !== 'SMS') {
+      setErro('Selecione um canal de notificação válido.')
+      return
+    }
+
     setSalvando(true)
     let algumaAlteracaoSalva = false
     try {
-      const usuario = await atualizarUsuario(usuarioId, { nomeCompleto: name, email, telefone })
+      const usuario = await atualizarUsuario(usuarioId, {
+        nomeCompleto: nomeNormalizado,
+        email: emailNormalizado,
+        telefone,
+      })
       algumaAlteracaoSalva = true
       setName(usuario.nomeCompleto)
       setEmail(usuario.email)
