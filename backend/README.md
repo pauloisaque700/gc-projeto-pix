@@ -51,7 +51,13 @@ Exemplo de criação de conta:
 }
 ```
 
-Cada conta inicia com saldo `0.00`. O usuário não pode ser removido enquanto possuir contas associadas.
+Cada conta inicia com saldo `0.00`. A remoção de contas e de usuários é feita em cascata (veja [Cascade de remoção](#cascade-de-remoção)).
+
+## Cascade de remoção
+
+- `DELETE /api/contas/{id}` remove, nesta ordem: as transferências PIX em que a conta aparece como origem ou destino, as chaves PIX da conta e, por último, a conta.
+- `DELETE /api/usuarios/{id}` remove todas as contas do usuário (cada uma com o cascade acima) e só depois o usuário. Um usuário com contas agora é removido com `204`.
+- A remoção não estorna valores. Se a conta removida transferiu para outra conta, o registro some do extrato PIX da conta de destino, mas o saldo dela é mantido.
 
 ## Organização
 

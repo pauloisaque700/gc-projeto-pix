@@ -4,6 +4,10 @@ import com.byebank.pix.application.comum.RecursoNaoEncontradoException;
 import com.byebank.pix.application.comum.RegraDeNegocioException;
 import com.byebank.pix.domain.conta.ContaBancaria;
 import com.byebank.pix.domain.conta.RepositorioContaBancaria;
+import com.byebank.pix.domain.pix.ChavePix;
+import com.byebank.pix.domain.pix.RepositorioChavePix;
+import com.byebank.pix.domain.pix.RepositorioTransferenciaPix;
+import com.byebank.pix.domain.pix.TransferenciaPix;
 import com.byebank.pix.domain.usuario.RepositorioUsuario;
 import org.springframework.stereotype.Service;
 
@@ -14,10 +18,17 @@ import java.util.UUID;
 public class ServicoContaBancaria {
     private final RepositorioContaBancaria repositorioConta;
     private final RepositorioUsuario repositorioUsuario;
+    private final RepositorioChavePix repositorioChave;
+    private final RepositorioTransferenciaPix repositorioTransferencia;
 
-    public ServicoContaBancaria(RepositorioContaBancaria repositorioConta, RepositorioUsuario repositorioUsuario) {
+    public ServicoContaBancaria(RepositorioContaBancaria repositorioConta,
+                                RepositorioUsuario repositorioUsuario,
+                                RepositorioChavePix repositorioChave,
+                                RepositorioTransferenciaPix repositorioTransferencia) {
         this.repositorioConta = repositorioConta;
         this.repositorioUsuario = repositorioUsuario;
+        this.repositorioChave = repositorioChave;
+        this.repositorioTransferencia = repositorioTransferencia;
     }
 
     public ContaBancaria cadastrar(CadastroContaBancariaCommand comando) {
@@ -49,8 +60,19 @@ public class ServicoContaBancaria {
         return repositorioConta.salvar(conta);
     }
 
+    /**
+     * Remove a conta em cascata, sem estorno de valores: primeiro as transferências PIX em que ela
+     * aparece como origem ou destino, depois as chaves PIX associadas e, por último, a própria conta.
+     */
     public void remover(UUID id) {
-        repositorioConta.remover(buscarPorId(id));
+        ContaBancaria conta = buscarPorId(id);
+        for (TransferenciaPix transferencia : repositorioTransferencia.listarPorConta(conta.getId())) {
+            repositorioTransferencia.remover(transferencia);
+        }
+        for (ChavePix chave : repositorioChave.listarPorContaId(conta.getId())) {
+            repositorioChave.remover(chave);
+        }
+        repositorioConta.remover(conta);
     }
 
     private void garantirUsuarioExiste(UUID usuarioId) {
