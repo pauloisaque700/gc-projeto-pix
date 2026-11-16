@@ -13,11 +13,15 @@ import com.byebank.pix.domain.pix.TransferenciaPix;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class ServicoTransferenciaPix {
+    private static final ZoneId FUSO_OPERACIONAL = ZoneId.of("America/Sao_Paulo");
+
     private final RepositorioContaBancaria repositorioConta;
     private final RepositorioChavePix repositorioChave;
     private final RepositorioTransferenciaPix repositorioTransferencia;
@@ -42,20 +46,27 @@ public class ServicoTransferenciaPix {
 
         Dinheiro valor = converterValor(comando.valor());
 
-        if (!contaOrigem.temSaldoSuficiente(valor)) {
-            throw new RegraDeNegocioException("Saldo insuficiente para realizar a transferência.");
+        synchronized (contaOrigem) {
+            Dinheiro totalAposTransferencia = totalDebitadoHoje(contaOrigem.getId()).somar(valor);
+            if (!contaOrigem.getLimiteDiario().ehMaiorOuIgualA(totalAposTransferencia)) {
+                throw new RegraDeNegocioException("Limite diário de transferência excedido.");
+            }
+
+            if (!contaOrigem.temSaldoSuficiente(valor)) {
+                throw new RegraDeNegocioException("Saldo insuficiente para realizar a transferência.");
+            }
+
+            contaOrigem.debitar(valor);
+            contaDestino.creditar(valor);
+
+            repositorioConta.salvar(contaOrigem);
+            repositorioConta.salvar(contaDestino);
+
+            TransferenciaPix transferencia = TransferenciaPix.registrarEntreContas(
+                    contaOrigem.getId(), contaDestino.getId(), chaveDestino.getValor(), valor
+            );
+            return repositorioTransferencia.salvar(transferencia);
         }
-
-        contaOrigem.debitar(valor);
-        contaDestino.creditar(valor);
-
-        repositorioConta.salvar(contaOrigem);
-        repositorioConta.salvar(contaDestino);
-
-        TransferenciaPix transferencia = TransferenciaPix.registrarEntreContas(
-                contaOrigem.getId(), contaDestino.getId(), chaveDestino.getValor(), valor
-        );
-        return repositorioTransferencia.salvar(transferencia);
     }
 
     /**
@@ -109,5 +120,17 @@ public class ServicoTransferenciaPix {
             throw new RegraDeNegocioException("O valor da transação PIX deve ser positivo.");
         }
         return dinheiro;
+    }
+
+    private Dinheiro totalDebitadoHoje(UUID contaId) {
+        LocalDate hoje = LocalDate.now(FUSO_OPERACIONAL);
+        return repositorioTransferencia.listarPorConta(contaId).stream()
+                .filter(transferencia -> contaId.equals(transferencia.getContaOrigemId()))
+                .filter(transferencia -> transferencia.getRealizadaEm()
+                        .atZone(FUSO_OPERACIONAL)
+                        .toLocalDate()
+                        .equals(hoje))
+                .map(TransferenciaPix::getValor)
+                .reduce(Dinheiro.zero(), Dinheiro::somar);
     }
 }

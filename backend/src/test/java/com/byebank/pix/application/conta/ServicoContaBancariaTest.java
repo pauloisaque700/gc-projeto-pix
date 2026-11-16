@@ -109,6 +109,7 @@ class ServicoContaBancariaTest {
         TransferenciaPix recebimento = servicoTransferencia.receberExterno(
                 new ReceberPixExternoCommand("a@exemplo.com", new BigDecimal("100.00"), "Banco Externo")
         );
+        servicoConta.definirLimiteDiario(contaA.getId(), new BigDecimal("500.00"));
         TransferenciaPix enviada = servicoTransferencia.transferir(
                 new TransferirPixCommand(contaA.getId(), "b@exemplo.com", new BigDecimal("40.00"))
         );

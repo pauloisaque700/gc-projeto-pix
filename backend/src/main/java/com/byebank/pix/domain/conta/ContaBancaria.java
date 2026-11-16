@@ -47,7 +47,7 @@ public final class ContaBancaria {
                 tipoConta, Dinheiro.zero(), null, StatusConta.ATIVA, agora, agora);
     }
 
-    public void definirLimiteDiario(Dinheiro novoLimite) {
+    public synchronized void definirLimiteDiario(Dinheiro novoLimite) {
         this.limiteDiario = validarLimiteDiario(novoLimite);
         this.atualizadaEm = Instant.now();
     }

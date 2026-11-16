@@ -154,6 +154,7 @@ class ServicoUsuarioTest {
     }
 
     private TransferenciaPix transferir(ContaBancaria origem, String chaveDestino, String valor) {
+        servicoConta.definirLimiteDiario(origem.getId(), new BigDecimal("1000.00"));
         return servicoTransferencia.transferir(
                 new TransferirPixCommand(origem.getId(), chaveDestino, new BigDecimal(valor))
         );
