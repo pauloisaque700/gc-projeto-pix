@@ -21,7 +21,7 @@ public abstract class ChavePix extends EntidadeBase{
 
     public abstract TipoChavePix getTipo();
 
-    public void associar(){
+    public void associar(UUID contaId){
         if (!validar()) {
             throw new IllegalStateException("Não é possível associar uma chave PIX com formato inválido.");
         }

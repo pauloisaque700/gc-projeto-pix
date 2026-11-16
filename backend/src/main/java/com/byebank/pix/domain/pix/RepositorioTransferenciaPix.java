@@ -10,4 +10,6 @@ public interface RepositorioTransferenciaPix {
     Optional<TransferenciaPix> buscarPorId(UUID id);
 
     List<TransferenciaPix> listarPorConta(UUID contaId);
+
+    void remover(TransferenciaPix transferencia);
 }
