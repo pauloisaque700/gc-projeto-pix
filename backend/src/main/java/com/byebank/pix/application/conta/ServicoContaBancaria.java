@@ -3,6 +3,9 @@ package com.byebank.pix.application.conta;
 import com.byebank.pix.application.comum.RecursoNaoEncontradoException;
 import com.byebank.pix.application.comum.RegraDeNegocioException;
 import com.byebank.pix.domain.conta.ContaBancaria;
+import com.byebank.pix.domain.conta.CanalNotificacao;
+import com.byebank.pix.domain.conta.Dinheiro;
+import com.byebank.pix.domain.conta.TipoConta;
 import com.byebank.pix.domain.conta.RepositorioContaBancaria;
 import com.byebank.pix.domain.pix.ChavePix;
 import com.byebank.pix.domain.pix.RepositorioChavePix;
@@ -12,6 +15,7 @@ import com.byebank.pix.domain.usuario.RepositorioUsuario;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
@@ -36,7 +40,46 @@ public class ServicoContaBancaria {
         if (repositorioConta.existePorAgenciaENumero(comando.agencia(), comando.numero())) {
             throw new RegraDeNegocioException("Já existe uma conta cadastrada com esta agência e número.");
         }
-        return repositorioConta.salvar(ContaBancaria.criar(comando.usuarioId(), comando.agencia(), comando.numero()));
+        return repositorioConta.salvar(ContaBancaria.criar(comando.usuarioId(), comando.agencia(), comando.numero(),
+                comando.tipoConta() == null ? TipoConta.CORRENTE : comando.tipoConta()));
+    }
+
+    public ContaBancaria definirLimiteDiario(UUID id, BigDecimal limiteDiario) {
+        ContaBancaria conta = buscarPorId(id);
+        conta.definirLimiteDiario(Dinheiro.de(limiteDiario));
+        return repositorioConta.salvar(conta);
+    }
+
+    public ContaBancaria definirNotificacao(UUID id, CanalNotificacao canal) {
+        ContaBancaria conta = buscarPorId(id);
+        conta.definirNotificacao(canal);
+        return repositorioConta.salvar(conta);
+    }
+
+    public ContaBancaria bloquear(UUID id) {
+        ContaBancaria conta = buscarPorId(id);
+        try {
+            conta.bloquear();
+        } catch (IllegalStateException excecao) {
+            throw new RegraDeNegocioException(excecao.getMessage());
+        }
+        return repositorioConta.salvar(conta);
+    }
+
+    public ContaBancaria desbloquear(UUID id) {
+        ContaBancaria conta = buscarPorId(id);
+        try {
+            conta.desbloquear();
+        } catch (IllegalStateException excecao) {
+            throw new RegraDeNegocioException(excecao.getMessage());
+        }
+        return repositorioConta.salvar(conta);
+    }
+
+    public String obterNomeTitular(ContaBancaria conta) {
+        return repositorioUsuario.buscarPorId(conta.getUsuarioId())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado."))
+                .getNomeCompleto();
     }
 
     public ContaBancaria buscarPorId(UUID id) {

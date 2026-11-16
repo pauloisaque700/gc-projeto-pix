@@ -3,60 +3,72 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import SmartphoneHeader from "@/src/components/SmartphoneHeader";
+import Tela from "@/src/components/Tela";
+import { criarConta } from "@/src/lib/api";
+import { obterUsuarioLogado } from "@/src/lib/session";
 
 type TipoConta = "corrente" | "poupanca";
 
-interface CriarContaBancariaProps {
-  onVoltar?: () => void;
-  onCriarConta?: (dados: {
-    tipoConta: TipoConta;
-    agencia: string;
-    conta: string;
-  }) => void;
-}
-
-export default function CriarContaBancaria({
-  onVoltar,
-  onCriarConta,
-}: CriarContaBancariaProps) {
+export default function CriarContaBancaria() {
   const router = useRouter();
   const [tipoConta, setTipoConta] = useState<TipoConta>("corrente");
   const [agencia, setAgencia] = useState<string>("");
   const [conta, setConta] = useState<string>("");
-
-  const handleVoltar = () => {
-    // Se quem usa o componente passar onVoltar, respeita essa função.
-    // Caso contrário, volta para a página anterior no histórico.
-    if (onVoltar) {
-      onVoltar();
-    } else {
-      router.back();
-    }
-  };
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const handleAgenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Mantém apenas dígitos, útil para número de agência
     const valor = e.target.value.replace(/\D/g, "");
     setAgencia(valor);
   };
 
   const handleContaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Permite dígitos e o hífen do dígito verificador (ex: 12345-6)
+    // Permite dígitos e o hífen
     const valor = e.target.value.replace(/[^0-9-]/g, "");
     setConta(valor);
   };
 
-  const handleSubmit = () => {
-    onCriarConta?.({ tipoConta, agencia, conta });
+  const handleSubmit = async () => {
+    setErro(null);
+    const usuarioId = obterUsuarioLogado();
+
+    if (!usuarioId) {
+      setErro("Usuário não encontrado. Faça login novamente.");
+      return;
+    }
+
+    // O backend exige apenas números para agência e conta.
+    const numeroLimpo = conta.replace(/\D/g, "");
+    const agenciaLimpa = agencia.replace(/\D/g, "");
+
+    if (!agenciaLimpa || !numeroLimpo) {
+      setErro("Preencha a agência e a conta corretamente.");
+      return;
+    }
+
+    setCarregando(true);
+    try {
+      await criarConta({
+        usuarioId,
+        agencia: agenciaLimpa,
+        numero: numeroLimpo,
+        tipoConta: tipoConta === "corrente" ? "CORRENTE" : "POUPANCA",
+      });
+
+      // Se der certo, redireciona para o perfil
+      router.push("/login/tela-perfil");
+    } catch (error: any) {
+      setErro(error.message || "Não foi possível criar a conta. Tente novamente.");
+    } finally {
+      setCarregando(false);
+    }
   };
 
   return (
     <Tela>
       <div style={styles.container}>
-        {/* Cabeçalho */}
         <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/login/tela-perfil" />
 
-        {/* Introdução */}
         <section style={styles.introducao}>
           <h2 style={styles.tituloSecao}>Nova Conta Bancária</h2>
           <p style={styles.subtitulo}>
@@ -65,7 +77,6 @@ export default function CriarContaBancaria({
           </p>
         </section>
 
-        {/* Tipo de conta */}
         <section style={styles.campo}>
           <label style={styles.rotulo}>Tipo de conta</label>
           <div style={styles.grupoTipoConta}>
@@ -86,9 +97,7 @@ export default function CriarContaBancaria({
               <span
                 style={{
                   ...styles.textoBotaoTipo,
-                  ...(tipoConta === "corrente"
-                    ? styles.textoBotaoTipoAtivo
-                    : {}),
+                  ...(tipoConta === "corrente" ? styles.textoBotaoTipoAtivo : {}),
                 }}
               >
                 Corrente
@@ -112,9 +121,7 @@ export default function CriarContaBancaria({
               <span
                 style={{
                   ...styles.textoBotaoTipo,
-                  ...(tipoConta === "poupanca"
-                    ? styles.textoBotaoTipoAtivo
-                    : {}),
+                  ...(tipoConta === "poupanca" ? styles.textoBotaoTipoAtivo : {}),
                 }}
               >
                 Poupança
@@ -123,7 +130,6 @@ export default function CriarContaBancaria({
           </div>
         </section>
 
-        {/* Agência */}
         <section style={styles.campo}>
           <label style={styles.rotulo} htmlFor="agencia">
             Agência
@@ -143,7 +149,6 @@ export default function CriarContaBancaria({
           </div>
         </section>
 
-        {/* Conta */}
         <section style={styles.campo}>
           <label style={styles.rotulo} htmlFor="conta">
             Conta
@@ -163,17 +168,22 @@ export default function CriarContaBancaria({
           </div>
         </section>
 
-        {/* Botão de submissão */}
+        {erro && (
+          <div style={{ color: "red", fontSize: 14, marginBottom: 16, textAlign: "center" }}>
+            {erro}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!agencia || !conta}
+          disabled={!agencia || !conta || carregando}
           style={{
             ...styles.botaoCriar,
-            ...(!agencia || !conta ? styles.botaoCriarDesabilitado : {}),
+            ...(!agencia || !conta || carregando ? styles.botaoCriarDesabilitado : {}),
           }}
         >
-          Criar conta
+          {carregando ? "Criando..." : "Criar conta"}
         </button>
       </div>
     </Tela>
@@ -184,27 +194,6 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     width: "100%",
     boxSizing: "border-box",
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    gap: 16,
-    marginBottom: 24,
-  },
-  botaoVoltar: {
-    background: "none",
-    border: "none",
-    fontSize: 20,
-    cursor: "pointer",
-    color: "#1A1A2E",
-    padding: 4,
-    lineHeight: 1,
-  },
-  tituloHeader: {
-    fontSize: 17,
-    fontWeight: 700,
-    color: "#1A1A2E",
-    margin: 0,
   },
   introducao: {
     marginBottom: 28,

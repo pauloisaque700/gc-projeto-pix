@@ -3,6 +3,7 @@ package com.byebank.pix.application.pix;
 import com.byebank.pix.application.comum.RecursoNaoEncontradoException;
 import com.byebank.pix.application.comum.RegraDeNegocioException;
 import com.byebank.pix.domain.conta.ContaBancaria;
+import com.byebank.pix.domain.conta.Dinheiro;
 import com.byebank.pix.domain.pix.TipoChavePix;
 import com.byebank.pix.domain.pix.TransferenciaPix;
 import com.byebank.pix.domain.usuario.Documento;
@@ -60,6 +61,7 @@ class ServicoTransferenciaPixTest {
         repositorioUsuario.salvar(titularDestino);
         contaOrigem = repositorioConta.salvar(ContaBancaria.criar(titularOrigem.getId(), "0001", "123456"));
         contaDestino = repositorioConta.salvar(ContaBancaria.criar(titularDestino.getId(), "0001", "654321"));
+        contaOrigem.definirLimiteDiario(Dinheiro.de(new BigDecimal("1000.00")));
 
         ServicoChavePix servicoChave = new ServicoChavePix(repositorioChave, repositorioConta, repositorioUsuario);
         servicoChave.associar(new AssociarChavePixCommand(contaOrigem.getId(), TipoChavePix.EMAIL, CHAVE_ORIGEM));
@@ -132,6 +134,20 @@ class ServicoTransferenciaPixTest {
 
         assertEquals("100.00", saldoDe(contaOrigem));
         assertEquals("0.00", saldoDe(contaDestino));
+    }
+
+    @Test
+    void deveRejeitarTransferenciaQueExcedeLimiteDiarioAcumulado() {
+        contaOrigem.definirLimiteDiario(Dinheiro.de(new BigDecimal("100.00")));
+        fundearOrigem("110.00");
+        transferir(CHAVE_DESTINO, "60.00");
+
+        assertThrows(RegraDeNegocioException.class, () -> transferir(CHAVE_DESTINO, "50.00"));
+
+        assertEquals("50.00", saldoDe(contaOrigem));
+        assertEquals(1, servicoTransferencia.listarExtrato(contaOrigem.getId()).stream()
+                .filter(transferencia -> contaOrigem.getId().equals(transferencia.getContaOrigemId()))
+                .count());
     }
 
     @Test

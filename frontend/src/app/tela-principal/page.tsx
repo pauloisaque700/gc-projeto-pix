@@ -17,6 +17,8 @@ import {
 } from "lucide-react"
 import Tela from "../../components/Tela"
 import Card from "../../components/Card"
+import { buscarUsuario, listarContasDoUsuario } from '../../lib/api'
+import { obterUsuarioLogado } from '../../lib/session'
 
 interface UsuarioData {
   nome: string
@@ -43,11 +45,25 @@ export default function Inicio() {
     async function carregarDadosUsuario() {
       try {
         setLoading(true)
-        const response = await fetch('../../lib/api.ts')
-        if (!response.ok) throw new Error('Falha ao buscar dados do usuário')
+        const id = obterUsuarioLogado()
+        if (!id) throw new Error('Usuário não logado')
+
+        // Puxa os dados do backend
+        const user = await buscarUsuario(id)
+        const contas = await listarContasDoUsuario(id)
         
-        const data = await response.json()
-        setUsuario(data)
+        // Pega a primeira conta (se existir)
+        const contaPrincipal = contas && contas.length > 0 ? contas[0] : null
+
+        // Monta o objeto no formato que a tela espera
+        setUsuario({
+          nome: user.nomeCompleto,
+          fotoUrl: "/bye.png", 
+          saldo: contaPrincipal?.saldo || 0,
+          agencia: contaPrincipal?.agencia || '---',
+          conta: contaPrincipal?.numero || '---',
+          transacoes: [] // Vazio por enquanto
+        })
       } catch (error) {
         console.error("Erro ao carregar usuário:", error)
       } finally {
@@ -61,6 +77,7 @@ export default function Inicio() {
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
   }
+  
   return (
     <Tela>
       <div className="w-full max-w-[400px] min-h-screen bg-white font-sans pb-24">
@@ -69,7 +86,7 @@ export default function Inicio() {
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-full overflow-hidden bg-slate-200">
               <img
-                src={usuario?.fotoUrl || "/foto-perfil.jpg"}
+                src={usuario?.fotoUrl || "/bye.png"}
                 alt="Foto de perfil"
                 className="w-full h-full object-cover"
               />
@@ -78,7 +95,7 @@ export default function Inicio() {
             <div className="flex flex-col">
               <span className="text-sm text-slate-400">Olá,</span>
               <span className="text-xl font-bold text-slate-900">
-                {usuario?.nome || "Usuário"}
+                {loading ? "Carregando..." : usuario?.nome || "Usuário"}
               </span>
             </div>
           </div>
@@ -175,6 +192,9 @@ export default function Inicio() {
           </div>
 
           <div className="flex flex-col">
+            {usuario?.transacoes?.length === 0 && (
+              <p className="text-slate-400 text-sm">Nenhuma transação recente.</p>
+            )}
             {usuario?.transacoes?.map((t) => {
               const isEntrada = t.valor > 0
               return (

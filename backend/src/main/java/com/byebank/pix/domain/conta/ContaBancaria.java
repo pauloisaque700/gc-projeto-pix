@@ -1,5 +1,6 @@
 package com.byebank.pix.domain.conta;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -12,9 +13,14 @@ public final class ContaBancaria {
     private String agencia;
     private String numero;
     private Dinheiro saldo;
+    private TipoConta tipoConta;
+    private Dinheiro limiteDiario;
+    private CanalNotificacao notificacao;
+    private StatusConta status;
     private Instant atualizadaEm;
 
     private ContaBancaria(UUID id, UUID usuarioId, String agencia, String numero, Dinheiro saldo,
+                          TipoConta tipoConta, Dinheiro limiteDiario, CanalNotificacao notificacao, StatusConta status,
                           Instant criadaEm, Instant atualizadaEm) {
         this.id = Objects.requireNonNull(id, "O identificador da conta é obrigatório.");
         this.usuarioId = Objects.requireNonNull(usuarioId, "O titular da conta é obrigatório.");
@@ -24,13 +30,48 @@ public final class ContaBancaria {
         if (saldo.ehNegativo()) {
             throw new IllegalArgumentException("O saldo da conta não pode ser negativo.");
         }
+        this.tipoConta = Objects.requireNonNull(tipoConta, "O tipo da conta é obrigatório.");
+        this.limiteDiario = validarLimiteDiario(limiteDiario);
+        this.notificacao = notificacao;
+        this.status = Objects.requireNonNull(status, "O status da conta é obrigatório.");
         this.criadaEm = Objects.requireNonNull(criadaEm, "A data de criação é obrigatória.");
         this.atualizadaEm = Objects.requireNonNull(atualizadaEm, "A data de atualização é obrigatória.");
     }
 
     public static ContaBancaria criar(UUID usuarioId, String agencia, String numero) {
+        return criar(usuarioId, agencia, numero, TipoConta.CORRENTE);
+    }
+
+    public static ContaBancaria criar(UUID usuarioId, String agencia, String numero, TipoConta tipoConta) {
         Instant agora = Instant.now();
-        return new ContaBancaria(UUID.randomUUID(), usuarioId, agencia, numero, Dinheiro.zero(), agora, agora);
+        return new ContaBancaria(UUID.randomUUID(), usuarioId, agencia, numero, Dinheiro.zero(),
+                tipoConta, Dinheiro.de(new BigDecimal("1000.00")), null, StatusConta.ATIVA, agora, agora);
+    }
+
+    public synchronized void definirLimiteDiario(Dinheiro novoLimite) {
+        this.limiteDiario = validarLimiteDiario(novoLimite);
+        this.atualizadaEm = Instant.now();
+    }
+
+    public void definirNotificacao(CanalNotificacao canal) {
+        this.notificacao = canal;
+        this.atualizadaEm = Instant.now();
+    }
+
+    public void bloquear() {
+        if (status == StatusConta.BLOQUEADA) {
+            throw new IllegalStateException("A conta já está bloqueada.");
+        }
+        status = StatusConta.BLOQUEADA;
+        atualizadaEm = Instant.now();
+    }
+
+    public void desbloquear() {
+        if (status == StatusConta.ATIVA) {
+            throw new IllegalStateException("A conta já está ativa.");
+        }
+        status = StatusConta.ATIVA;
+        atualizadaEm = Instant.now();
     }
 
     public void atualizarDados(String agencia, String numero) {
@@ -41,6 +82,7 @@ public final class ContaBancaria {
 
     /** Preparado para o recebimento PIX, que será exposto no módulo de transferências. */
     public void creditar(Dinheiro valor) {
+        garantirContaAtiva();
         validarValorPositivo(valor);
         saldo = saldo.somar(valor);
         atualizadaEm = Instant.now();
@@ -48,6 +90,7 @@ public final class ContaBancaria {
 
     /** Preparado para o envio PIX; evita que a conta fique com saldo negativo. */
     public void debitar(Dinheiro valor) {
+        garantirContaAtiva();
         validarValorPositivo(valor);
         if (!saldo.ehMaiorOuIgualA(valor)) {
             throw new IllegalStateException("Saldo insuficiente para realizar a operação.");
@@ -58,6 +101,20 @@ public final class ContaBancaria {
 
     public boolean temSaldoSuficiente(Dinheiro valor) {
         return saldo.ehMaiorOuIgualA(valor);
+    }
+
+    private void garantirContaAtiva() {
+        if (status == StatusConta.BLOQUEADA) {
+            throw new IllegalStateException("Conta bloqueada: não é possível realizar a operação.");
+        }
+    }
+
+    private static Dinheiro validarLimiteDiario(Dinheiro limite) {
+        Objects.requireNonNull(limite, "O limite diário é obrigatório.");
+        if (limite.ehNegativo()) {
+            throw new IllegalArgumentException("O limite diário não pode ser negativo.");
+        }
+        return limite;
     }
 
     private static void validarValorPositivo(Dinheiro valor) {
@@ -99,6 +156,22 @@ public final class ContaBancaria {
 
     public Dinheiro getSaldo() {
         return saldo;
+    }
+
+    public TipoConta getTipoConta() {
+        return tipoConta;
+    }
+
+    public Dinheiro getLimiteDiario() {
+        return limiteDiario;
+    }
+
+    public CanalNotificacao getNotificacao() {
+        return notificacao;
+    }
+
+    public StatusConta getStatus() {
+        return status;
     }
 
     public Instant getCriadaEm() {
