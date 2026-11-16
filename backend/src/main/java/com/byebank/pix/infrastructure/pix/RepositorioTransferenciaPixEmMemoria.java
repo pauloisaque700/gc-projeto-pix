@@ -34,4 +34,9 @@ public class RepositorioTransferenciaPixEmMemoria implements RepositorioTransfer
                 .sorted(Comparator.comparing(TransferenciaPix::getRealizadaEm).reversed())
                 .toList();
     }
+
+    @Override
+    public void remover(TransferenciaPix transferencia) {
+        transferenciasPorId.remove(transferencia.getId());
+    }
 }

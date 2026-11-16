@@ -2,7 +2,8 @@ package com.byebank.pix.application.usuario;
 
 import com.byebank.pix.application.comum.RecursoNaoEncontradoException;
 import com.byebank.pix.application.comum.RegraDeNegocioException;
-import com.byebank.pix.domain.conta.RepositorioContaBancaria;
+import com.byebank.pix.application.conta.ServicoContaBancaria;
+import com.byebank.pix.domain.conta.ContaBancaria;
 import com.byebank.pix.domain.usuario.Documento;
 import com.byebank.pix.domain.usuario.Email;
 import com.byebank.pix.domain.usuario.RepositorioUsuario;
@@ -15,11 +16,11 @@ import java.util.UUID;
 @Service
 public class ServicoUsuario {
     private final RepositorioUsuario repositorioUsuario;
-    private final RepositorioContaBancaria repositorioConta;
+    private final ServicoContaBancaria servicoConta;
 
-    public ServicoUsuario(RepositorioUsuario repositorioUsuario, RepositorioContaBancaria repositorioConta) {
+    public ServicoUsuario(RepositorioUsuario repositorioUsuario, ServicoContaBancaria servicoConta) {
         this.repositorioUsuario = repositorioUsuario;
-        this.repositorioConta = repositorioConta;
+        this.servicoConta = servicoConta;
     }
 
     public Usuario cadastrar(CadastroUsuarioCommand comando) {
@@ -52,10 +53,11 @@ public class ServicoUsuario {
         return repositorioUsuario.salvar(usuario);
     }
 
+    /** Remove o usuário em cascata: cada conta (com seu próprio cascade) e só depois o usuário. */
     public void remover(UUID id) {
         Usuario usuario = buscarPorId(id);
-        if (repositorioConta.existePorUsuarioId(usuario.getId())) {
-            throw new RegraDeNegocioException("Não é possível remover um usuário que possui contas bancárias.");
+        for (ContaBancaria conta : servicoConta.listarPorUsuario(usuario.getId())) {
+            servicoConta.remover(conta.getId());
         }
         repositorioUsuario.remover(usuario);
     }
