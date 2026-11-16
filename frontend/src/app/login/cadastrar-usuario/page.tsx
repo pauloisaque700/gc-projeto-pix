@@ -20,6 +20,15 @@ const formatarCPF = (valor: string) => {
         .replace(/(-\d{2})\d+?$/, '$1'); // Trava em 14 caracteres
 }
 
+// Função que cria a máscara do Telefone
+const formatarTelefone = (valor: string) => {
+    let v = valor.replace(/\D/g, ''); // Remove tudo que não é número
+    v = v.slice(0, 11); // Limita a 11 dígitos
+    v = v.replace(/^(\d{2})(\d)/g, '($1) $2'); // Coloca parênteses no DDD
+    v = v.replace(/(\d)(\d{4})$/, '$1-$2'); // Coloca hífen antes dos 4 últimos
+    return v;
+}
+
 export default function Cadastro() {
     const router = useRouter()
 
@@ -55,9 +64,16 @@ export default function Cadastro() {
 
         // O backend exige o CPF apenas com números (sem pontos e traços)
         const cpfLimpo = cpf.replace(/\D/g, '')
+        // O backend exige o Telefone apenas com números
+        const telefoneLimpo = telefone.replace(/\D/g, '')
 
         if (cpfLimpo.length !== 11) {
             setErro('O CPF deve ter 11 dígitos.')
+            return
+        }
+
+        if (telefoneLimpo.length < 10) {
+            setErro('O Telefone deve ter DDD + número.')
             return
         }
 
@@ -68,7 +84,7 @@ export default function Cadastro() {
                 tipoDocumento: 'CPF',
                 documento: cpfLimpo, // Envia limpo
                 email,
-                telefone,
+                telefone: telefoneLimpo, // Envia limpo
             })
 
             salvarUsuarioLogado(usuario.id)
@@ -109,7 +125,7 @@ export default function Cadastro() {
                     icon={<CreditCard className="w-5 h-5 stroke-[1.8]" />}
                     type="text"
                     value={cpf}
-                    onChange={(e) => setCpf(formatarCPF(e.target.value))} // Aplica a máscara aqui!
+                    onChange={(e) => setCpf(formatarCPF(e.target.value))}
                 />
                 <Input
                     label="E-mail"
@@ -125,7 +141,7 @@ export default function Cadastro() {
                     icon={<Phone className="w-5 h-5" />}
                     type="tel"
                     value={telefone}
-                    onChange={(e) => setTelefone(e.target.value)}
+                    onChange={(e) => setTelefone(formatarTelefone(e.target.value))} // MÁSCARA AQUI
                 />
                 <Input
                     label="Senha"
