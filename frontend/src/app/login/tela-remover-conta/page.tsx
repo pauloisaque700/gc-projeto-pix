@@ -4,26 +4,32 @@ import Tela from '../../../components/Tela'
 import SmartphoneHeader from '../../../components/SmartphoneHeader'
 import BotaoGrande from '../../../components/BotaoGrande'
 import { AlertCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { buscarConta, removerConta, type Conta } from '../../../lib/api'
 
-type StatusConta = 'ativa' | 'inativa'
-
-// Formato dos dados da conta que será removida. O back-end deve devolver este formato
-// (ou basta ajustar a função preencherConta abaixo).
-type DadosContaRemocao = {
-  tipoConta: string
-  agencia: string
-  numeroConta: string
-  status: StatusConta
-}
+type StatusConta = Conta['status']
 
 const STATUS_CONTA: Record<StatusConta, { rotulo: string; corTexto: string; corPonto: string }> = {
-  ativa: { rotulo: 'Ativa', corTexto: 'text-emerald-600', corPonto: 'bg-emerald-500' },
-  inativa: { rotulo: 'Inativa', corTexto: 'text-slate-400', corPonto: 'bg-slate-400' },
+  ATIVA: { rotulo: 'Ativa', corTexto: 'text-emerald-600', corPonto: 'bg-emerald-500' },
+  BLOQUEADA: { rotulo: 'Bloqueada', corTexto: 'text-slate-400', corPonto: 'bg-slate-400' },
 }
 
 export default function RemoverConta() {
+  return (
+    <Suspense fallback={<Tela><p role="status">Carregando conta...</p></Tela>}>
+      <ContaDaUrl />
+    </Suspense>
+  )
+}
+
+function ContaDaUrl() {
+  const searchParams = useSearchParams()
+  const contaId = searchParams.get('contaId')
+  return <ConfirmarRemocao key={contaId} contaId={contaId} />
+}
+
+function ConfirmarRemocao({ contaId }: { contaId: string | null }) {
   const router = useRouter()
 
   const [tipoConta, setTipoConta] = useState('')
@@ -31,38 +37,49 @@ export default function RemoverConta() {
   const [numeroConta, setNumeroConta] = useState('')
   const [status, setStatus] = useState<StatusConta | null>(null)
 
-  const [carregando, setCarregando] = useState(false)
+  const [carregando, setCarregando] = useState(Boolean(contaId))
   const [removendo, setRemovendo] = useState(false)
-
-  // Preenche os campos a partir dos dados vindos do back-end.
-  const preencherConta = (dados: DadosContaRemocao) => {
-    setTipoConta(dados.tipoConta)
-    setAgencia(dados.agencia)
-    setNumeroConta(dados.numeroConta)
-    setStatus(dados.status)
-  }
+  const [erro, setErro] = useState(contaId ? '' : 'Nenhuma conta foi informada. Volte ao perfil e selecione uma conta.')
+  const remocaoEmAndamento = useRef(false)
 
   useEffect(() => {
-    // TODO: buscar os dados da conta no back-end e chamar preencherConta(dados).
-    // Exemplo:
-    // setCarregando(true)
-    // buscarConta(id)
-    //   .then(preencherConta)
-    //   .catch(() => { /* tratar erro */ })
-    //   .finally(() => setCarregando(false))
-  }, [])
+    if (!contaId) return
+    let ativo = true
+    buscarConta(contaId)
+      .then((dados) => {
+        if (!ativo) return
+        setTipoConta(dados.tipoConta === 'CORRENTE' ? 'Conta Corrente' : 'Conta Poupança')
+        setAgencia(dados.agencia)
+        setNumeroConta(dados.numero)
+        setStatus(dados.status)
+      })
+      .catch((error) => {
+        if (ativo) setErro(error instanceof Error ? error.message : 'Não foi possível carregar a conta.')
+      })
+      .finally(() => { if (ativo) setCarregando(false) })
+    return () => { ativo = false }
+  }, [contaId])
 
   const handleRemover = async () => {
-    // TODO: chamar o endpoint de remoção da conta no back-end.
-    // setRemovendo(true)
-    // try { await removerConta(id); router.push('/tela-principal') } finally { setRemovendo(false) }
+    if (!contaId || !status || carregando || remocaoEmAndamento.current) return
+    remocaoEmAndamento.current = true
+    setRemovendo(true)
+    setErro('')
+    try {
+      await removerConta(contaId)
+      router.push('/tela-principal')
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : 'Não foi possível remover a conta.')
+      remocaoEmAndamento.current = false
+      setRemovendo(false)
+    }
   }
 
   const statusAtual = status ? STATUS_CONTA[status] : null
 
   return (
     <Tela>
-      <SmartphoneHeader title="Remover Conta" backToUrl="/tela-perfil" />
+      <SmartphoneHeader title="Remover Conta" backToUrl="/login/tela-perfil" />
 
       <div className="w-20 h-20 mx-auto my-4 bg-red-50 border-2 border-red-100 rounded-full flex items-center justify-center shadow-sm">
         <AlertCircle className="w-10 h-10 stroke-[1.8] text-red-500" />
@@ -71,6 +88,9 @@ export default function RemoverConta() {
       <h2 className="text-center text-xl font-semibold text-slate-800 leading-snug px-2">
         Tem certeza que deseja remover esta conta?
       </h2>
+
+      {carregando && <p role="status" className="text-center text-sm text-slate-500">Carregando conta...</p>}
+      {erro && <p role="alert" className="text-center text-sm text-red-600">{erro}</p>}
 
       <Card>
         <div className="flex items-center justify-between">
@@ -97,7 +117,7 @@ export default function RemoverConta() {
         textClass="text-white font-semibold"
         widthClass="w-full"
         isLoading={carregando || removendo}
-        disabled={carregando || removendo}
+        disabled={carregando || removendo || !contaId || !status}
         onClick={handleRemover}
       />
 

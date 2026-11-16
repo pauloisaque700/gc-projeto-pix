@@ -169,7 +169,7 @@ export default function EditarConta() {
 
         <BotaoGrande text="Salvar alterações" bgClass="bg-[#4F46E5] hover:bg-[#4338CA]" textClass="text-white font-semibold" widthClass="w-full" isLoading={salvando} disabled={bloqueado} onClick={handleSalvar} />
         <BotaoGrande text="Remover conta" bgClass="bg-red-500 hover:bg-red-600" textClass="text-white font-semibold" widthClass="w-full" disabled={bloqueado || !conta} onClick={() => {
-          if (conta) router.push(`/login/tela-remover-usuario?contaId=${encodeURIComponent(conta.id)}`)
+          if (conta) router.push(`/login/tela-remover-conta?contaId=${encodeURIComponent(conta.id)}`)
         }} />
       </div>
     </Tela>
