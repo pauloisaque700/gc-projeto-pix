@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import SmartphoneHeader from "@/src/components/SmartphoneHeader";
+import Tela from "@/src/components/Tela";
 
 type TipoConta = "corrente" | "poupanca";
 
