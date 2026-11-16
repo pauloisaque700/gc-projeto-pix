@@ -16,6 +16,9 @@ public record CriarContaBancariaRequest(
 
         @NotBlank(message = "O número da conta é obrigatório.")
         @Pattern(regexp = "\\d{1,20}", message = "O número da conta deve conter de 1 a 20 dígitos.")
-        String numero
+        String numero,
+
+        @Pattern(regexp = "CORRENTE|POUPANCA")
+        String tipoConta
 ) {
 }

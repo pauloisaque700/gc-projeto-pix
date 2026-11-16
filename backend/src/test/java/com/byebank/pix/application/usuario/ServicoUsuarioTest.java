@@ -140,7 +140,7 @@ class ServicoUsuarioTest {
     }
 
     private ContaBancaria criarConta(Usuario usuario, String numero) {
-        return servicoConta.cadastrar(new CadastroContaBancariaCommand(usuario.getId(), "0001", numero));
+        return servicoConta.cadastrar(new CadastroContaBancariaCommand(usuario.getId(), "0001", numero, null));
     }
 
     private ChavePix associarEmail(ContaBancaria conta, String email) {

@@ -63,7 +63,7 @@ class ServicoContaBancariaTest {
     @Test
     void deveCadastrarContaComSaldoZero() {
         ContaBancaria conta = servicoConta.cadastrar(new CadastroContaBancariaCommand(
-                titular.getId(), "0001", "123456"
+                titular.getId(), "0001", "123456", null
         ));
 
         assertEquals(titular.getId(), conta.getUsuarioId());
@@ -72,7 +72,7 @@ class ServicoContaBancariaTest {
 
     @Test
     void deveImpedirIdentificacaoDeContaDuplicada() {
-        CadastroContaBancariaCommand comando = new CadastroContaBancariaCommand(titular.getId(), "0001", "123456");
+        CadastroContaBancariaCommand comando = new CadastroContaBancariaCommand(titular.getId(), "0001", "123456", null);
         servicoConta.cadastrar(comando);
 
         assertThrows(RegraDeNegocioException.class, () -> servicoConta.cadastrar(comando));
@@ -80,8 +80,8 @@ class ServicoContaBancariaTest {
 
     @Test
     void deveListarContasDoUsuario() {
-        servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", "123456"));
-        servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", "654321"));
+        servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", "123456", null));
+        servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", "654321", null));
 
         assertEquals(2, servicoConta.listarPorUsuario(titular.getId()).size());
     }
@@ -137,7 +137,7 @@ class ServicoContaBancariaTest {
     }
 
     private ContaBancaria criarConta(String numero) {
-        return servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", numero));
+        return servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", numero, null));
     }
 
     private void associarEmail(ContaBancaria conta, String email) {
