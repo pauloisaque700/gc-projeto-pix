@@ -10,6 +10,16 @@ import { useRouter } from 'next/navigation'
 import { criarUsuario, ApiError } from '../../../lib/api'
 import { salvarUsuarioLogado } from '../../../lib/session'
 
+// Função que cria a máscara do CPF e bloqueia letras ou limite estourado
+const formatarCPF = (valor: string) => {
+    return valor
+        .replace(/\D/g, '') // Remove tudo que não for número
+        .replace(/(\d{3})(\d)/, '$1.$2') // Coloca ponto
+        .replace(/(\d{3})(\d)/, '$1.$2') // Coloca ponto
+        .replace(/(\d{3})(\d{1,2})/, '$1-$2') // Coloca hífen
+        .replace(/(-\d{2})\d+?$/, '$1'); // Trava em 14 caracteres
+}
+
 export default function Cadastro() {
     const router = useRouter()
 
@@ -43,15 +53,20 @@ export default function Cadastro() {
             return
         }
 
+        // O backend exige o CPF apenas com números (sem pontos e traços)
+        const cpfLimpo = cpf.replace(/\D/g, '')
+
+        if (cpfLimpo.length !== 11) {
+            setErro('O CPF deve ter 11 dígitos.')
+            return
+        }
+
         setLoading(true)
         try {
-            // O backend ainda não tem um módulo de autenticação (login/senha),
-            // apenas cadastro de dados do usuário. A senha é validada aqui no
-            // cliente por enquanto e não é enviada à API.
             const usuario = await criarUsuario({
                 nomeCompleto: nome,
                 tipoDocumento: 'CPF',
-                documento: cpf,
+                documento: cpfLimpo, // Envia limpo
                 email,
                 telefone,
             })
@@ -94,7 +109,7 @@ export default function Cadastro() {
                     icon={<CreditCard className="w-5 h-5 stroke-[1.8]" />}
                     type="text"
                     value={cpf}
-                    onChange={(e) => setCpf(e.target.value)}
+                    onChange={(e) => setCpf(formatarCPF(e.target.value))} // Aplica a máscara aqui!
                 />
                 <Input
                     label="E-mail"

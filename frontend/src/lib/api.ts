@@ -11,7 +11,6 @@ export interface ErroApi {
   campos: Record<string, string>;
 }
 
-/** Erro lançado quando a API responde com um status de erro (4xx/5xx). */
 export class ApiError extends Error {
   status: number;
   campos: Record<string, string>;
@@ -40,7 +39,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
 
-  // DELETE bem-sucedido retorna 204 sem corpo.
   if (response.status === 204) {
     return undefined as T;
   }
@@ -135,6 +133,7 @@ export interface CriarContaBancariaRequest {
   usuarioId: string;
   agencia: string;
   numero: string;
+  tipoConta: "CORRENTE" | "POUPANCA";
 }
 
 export interface AtualizarContaBancariaRequest {
@@ -142,8 +141,8 @@ export interface AtualizarContaBancariaRequest {
   numero: string;
 }
 
-export function criarConta(dados: CriarContaBancariaRequest) {
-  return request<ContaBancariaResponse>("/api/contas", {
+export function criarConta(dados: CriarContaBancariaRequest): Promise<Conta> {
+  return request<Conta>("/api/contas", {
     method: "POST",
     body: JSON.stringify(dados),
   });
