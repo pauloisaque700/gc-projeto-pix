@@ -39,8 +39,9 @@ export default function MinhasChavesPix() {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         
         const dadosSimulados: ChavePix[] = [
-          { id: "1", tipo: "cpf", valor: "123.456.789-00", conta: "Conta Corrente ****1234", status: "Ativa" },
-          { id: "2", tipo: "email", valor: "usuario@email.com", conta: "Conta Corrente ****1234", status: "Ativa" }
+          { id: "1", tipo: "cpf", valor: "123.456.789-00", conta: "Conta: ****1234", status: "Ativa" },
+          { id: "2", tipo: "email", valor: "usuario@email.com", conta: "Conta: ****1234", status: "Em Análise" },
+          { id: "3", tipo: "email", valor: "usuario@email.com", conta: "Conta: ****1234", status: "Suspensa" }
         ];
         
         setChaves(dadosSimulados);
@@ -65,6 +66,47 @@ export default function MinhasChavesPix() {
     }
   };
 
+  // Função auxiliar para formatar o rótulo do tipo da chave (ex: CPF, E-mail)
+  const obterNomeTipoChave = (tipo: string) => {
+    switch (tipo.toLowerCase()) {
+      case 'cpf': return 'CPF';
+      case 'cnpj': return 'CNPJ';
+      case 'email': return 'E-mail';
+      case 'telefone': return 'Telefone';
+      default: return tipo;
+    }
+  };
+
+  // Função auxiliar para estilizar a tag de status conforme o retorno do backend
+  const obterEstiloStatus = (status: string) => {
+    const statusNormalizado = status.toLowerCase().trim();
+
+    if (statusNormalizado === 'ativa') {
+      return "bg-[#E6FDF9] text-[#0D9488]";
+    }
+    if (statusNormalizado === 'em análise' || statusNormalizado === 'em analise' || statusNormalizado === 'pendente') {
+      return "bg-[#FEF3C7] text-[#D97706]";
+    }
+    if (statusNormalizado === 'suspensa' || statusNormalizado === 'bloqueada') {
+      return "bg-[#FEE2E2] text-[#DC2626]";
+    }
+
+    return "bg-slate-100 text-slate-600";
+  };
+
+  // Ação ao clicar em uma chave (fácil de integrar com as rotas do backend)
+  const handleSelecionarChave = (chave: ChavePix) => {
+    const statusNormalizado = chave.status.toLowerCase().trim();
+
+    if (statusNormalizado === 'suspensa') {
+      router.push('/pix/chave-pix-suspensa');
+      return;
+    }
+
+    // Rota padrão para detalhes/gerenciamento da chave
+    router.push(`/pix/minhas-chaves-pix/${chave.id}`);
+  };
+
   return (
     <Tela>
       <SmartphoneHeader title="Minhas Chaves PIX" backToUrl="/tela-principal" />
@@ -74,7 +116,7 @@ export default function MinhasChavesPix() {
         <div className="flex flex-col gap-1.5">
           <h2 className="text-base font-bold text-slate-700">Chaves cadastradas</h2>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Use suas chaves PIX para receber transferências em tempo real na sua conta ByaBank de forma rápida e segura.
+            Use suas chaves PIX para receber transferências em tempo real na sua conta ByeBank de forma rápida e segura.
           </p>
         </div>
 
@@ -100,7 +142,8 @@ export default function MinhasChavesPix() {
               >
                 <button 
                   type="button"
-                  className="w-full flex items-center justify-between text-left group"
+                  onClick={() => handleSelecionarChave(chave)}
+                  className="w-full flex items-center justify-between text-left group cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-11 h-11 rounded-full bg-[#EEF2FF] flex items-center justify-center shrink-0">
@@ -109,8 +152,10 @@ export default function MinhasChavesPix() {
                     
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-700 uppercase">{chave.tipo}</span>
-                        <span className="text-[10px] font-bold bg-[#E6FDF9] text-[#0D9488] px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-bold text-slate-700">
+                          {obterNomeTipoChave(chave.tipo)}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${obterEstiloStatus(chave.status)}`}>
                           {chave.status}
                         </span>
                       </div>
@@ -140,18 +185,17 @@ export default function MinhasChavesPix() {
             textClass="text-white font-semibold"
             widthClass="w-full"
             icon={<Plus className="w-4 h-4 stroke-[2.5]" />}
-            onClick={() => router.push('/pix/adicionar-chave')} // Altere aqui para a rota exata da sua pasta do formulário
+            onClick={() => router.push('/pix/adicionar-chave')}
           />
-            <BotaoGrande 
-                text="Gerar chave aleatória"
-                bgClass="bg-white hover:bg-slate-50/50"
-                borderClass="border border-slate-200"
-                textClass="text-[#4F46E5] font-semibold"
-                widthClass="w-full"
-                icon={<RotateCw className="w-4 h-4 stroke-[2.2]" />}
-                onClick={() => console.log("Ação de gerar chave aleatória")}
-            />
-          
+          <BotaoGrande 
+            text="Gerar chave aleatória"
+            bgClass="bg-white hover:bg-slate-50/50"
+            borderClass="border border-slate-200"
+            textClass="text-[#4F46E5] font-semibold"
+            widthClass="w-full"
+            icon={<RotateCw className="w-4 h-4 stroke-[2.2]" />}
+            onClick={() => console.log("Ação de gerar chave aleatória")}
+          />
         </div>
 
       </div>
