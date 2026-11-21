@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from 'react';
-import { ArrowLeft, Search, Wallet, ArrowRight, DollarSign } from 'lucide-react'; // Ícones equivalentes ao print
+import { Search, DollarSign, ChevronDown, Calendar, Clock } from 'lucide-react';
 import Tela from '../../../components/Tela';
 import SmartphoneHeader from '../../../components/SmartphoneHeader';
 import Card from '../../../components/Card';
@@ -10,28 +10,44 @@ import Input from '../../../components/Input';
 import BotaoGrande from '../../../components/BotaoGrande';
 
 export default function TransferirPix() {  
-  // Mock das contas (mesmo padrão usado no seu Dropdown anterior)
-
-    interface Conta {
-        id: string;
-        tipoConta: string;
-        saldo?: string;
-        brand?: string;
-    }
+  interface Conta {
+    id: string;
+    tipoConta: string;
+    saldo?: string;
+    brand?: string;
+  }
 
   const contasDisponiveis = [
     { id: '1', tipoConta: 'Conta Corrente', saldo: '1.500,00', brand: 'ByeBank' }
   ];
 
-  const [contaOrigem, setContaOrigem] = useState<Conta>(contasDisponiveis[0]);
+  const [contaOrigem] = useState<Conta>(contasDisponiveis[0]);
   const [chaveDestinatario, setChaveDestinatario] = useState('');
   const [valorTransferencia, setValorTransferencia] = useState('250,00');
   const [loading, setLoading] = useState(false);
-  const [limiteOperacional, setLimiteOperacional] = useState(5000.00); // Limite operacional restante
+  const [limiteOperacional] = useState(5000.00);
+
+  // Novos estados adicionados para os novos elementos da tela
+  const [tipoTransferencia, setTipoTransferencia] = useState('instantaneo');
+  const [dataAgendamento, setDataAgendamento] = useState('');
+  const [horaAgendamento, setHoraAgendamento] = useState('');
+
+  const contatosRecentes = [
+    { id: '1', iniciais: 'JS', nome: 'João', chave: 'joao@email.com' },
+    { id: '2', iniciais: 'MO', nome: 'Maria', chave: '11999999999' },
+    { id: '3', iniciais: 'CR', nome: 'Carlos', chave: '123.456.789-00' },
+  ];
 
   const handleContinuar = () => {
     setLoading(true);
-    console.log("Avançando com a transferência:", { contaOrigem, chaveDestinatario, valorTransferencia });
+    console.log("Avançando com a transferência:", { 
+      contaOrigem, 
+      chaveDestinatario, 
+      valorTransferencia,
+      tipoTransferencia,
+      dataAgendamento,
+      horaAgendamento
+    });
     // Lógica para avançar de passo ou enviar para a API
   };
 
@@ -47,11 +63,10 @@ export default function TransferirPix() {
             <label className="text-sm font-semibold text-slate-700">
               Origem da transferência
             </label>
-            {/* O onSelect agora casa perfeitamente com o tipo (conta: Conta) => void */}
             <CardConta 
-                tipoConta={contaOrigem.tipoConta}    // 👈 Corrigido para contaOrigem
-                nomeBanco={contaOrigem.brand || ''}  // 👈 Pega o 'brand' do seu objeto
-                saldo={contaOrigem.saldo || '0,00'}  // 👈 Passa a string direta, sem toLocaleString
+              tipoConta={contaOrigem.tipoConta}
+              nomeBanco={contaOrigem.brand || ''}
+              saldo={contaOrigem.saldo || '0,00'}
             />
           </div>
 
@@ -64,8 +79,8 @@ export default function TransferirPix() {
             onChange={(e) => setChaveDestinatario(e.target.value)}
           />
 
-          {/* 3. Campo de Valor usando seu componente Input */}
-          <div className="relative">
+          {/* 3. Campo de Valor + Seletor Instantâneo + Data/Hora */}
+          <div className="flex flex-col gap-3">
             <Input 
               label="Quanto deseja transferir?"
               placeholder="250,00" 
@@ -74,14 +89,94 @@ export default function TransferirPix() {
               value={valorTransferencia}
               onChange={(e) => setValorTransferencia(e.target.value)}
             />
-            {/* O foco do seu Input aplica a borda #4F46E5 perfeitamente igual ao print */}
-            <span className="absolute -bottom-5 left-0 text-xs text-slate-400 font-sans">
+
+            {/* Dropdown Instantâneo / Agendado */}
+            <div className="relative">
+              <select
+                value={tipoTransferencia}
+                onChange={(e) => {
+                  const valor = e.target.value;
+                  setTipoTransferencia(valor);
+                  if (valor === 'instantaneo') {
+                    setDataAgendamento('');
+                    setHoraAgendamento('');
+                  }
+                }}
+                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:border-[#4F46E5] transition-colors cursor-pointer"
+              >
+                <option value="instantaneo">Instantâneo</option>
+                <option value="agendado">Agendado</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Limite operacional */}
+            <span className="text-xs text-slate-400 font-sans">
               Limite operacional restante: R$ {limiteOperacional.toFixed(2).replace('.', ',')}
             </span>
+
+            {/* Botões/Pílulas de Data e Hora (aparecem apenas quando 'agendado' está selecionado) */}
+            {tipoTransferencia === 'agendado' && (
+              <div className="flex items-center gap-2.5 pt-1">
+                <label className="relative flex items-center gap-1.5 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-medium px-3.5 py-2 rounded-full cursor-pointer transition-colors">
+                  <Calendar className="w-3.5 h-3.5 stroke-2" />
+                  <span>{dataAgendamento || 'Data'}</span>
+                  <input
+                    type="date"
+                    value={dataAgendamento}
+                    onChange={(e) => setDataAgendamento(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                </label>
+
+                <label className="relative flex items-center gap-1.5 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-medium px-3.5 py-2 rounded-full cursor-pointer transition-colors">
+                  <Clock className="w-3.5 h-3.5 stroke-2" />
+                  <span>{horaAgendamento || 'Hora'}</span>
+                  <input
+                    type="time"
+                    value={horaAgendamento}
+                    onChange={(e) => setHoraAgendamento(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
-          {/* 4. Botão Principal de Envio */}
-          <div className="mt-5">
+          {/* 4. Contatos Recentes */}
+          <div className="flex flex-col gap-2.5 pt-2 font-sans">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              CONTATOS RECENTES
+            </span>
+            <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
+              {contatosRecentes.map((contato) => (
+                <button
+                  key={contato.id}
+                  type="button"
+                  onClick={() => setChaveDestinatario(contato.chave)}
+                  className="flex items-center gap-2 bg-white border border-slate-100 hover:border-[#4F46E5] rounded-full py-1.5 pl-1.5 pr-3.5 shadow-2xs transition-colors shrink-0 cursor-pointer"
+                >
+                  <span className="w-6 h-6 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[10px] font-bold flex items-center justify-center">
+                    {contato.iniciais}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700">
+                    {contato.nome}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 5. Botões Inferiores: Cancelar + Continuar */}
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-base py-3.5 transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+
             <BotaoGrande 
               text="Continuar" 
               bgClass="bg-[#4F46E5] hover:bg-[#4338CA]" 
