@@ -80,7 +80,7 @@ export default function AdicionarChave() {
         await new Promise((resolve) => setTimeout(resolve, 1500));
         // APENAS se nenhuma validação acima lançar erro, a tela avança
         setPasso(2);
-    } catch (err: any) {
+    } catch (err) {
         // O código cai aqui imediatamente caso qualquer 'throw new Error' seja acionado
         setErro(err.message || "Ocorreu um erro ao validar a chave. Tente novamente.");
     } finally {

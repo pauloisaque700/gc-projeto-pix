@@ -57,7 +57,7 @@ export default function CriarContaBancaria() {
 
       // Se der certo, redireciona para o perfil
       router.push("/login/tela-perfil");
-    } catch (error: any) {
+    } catch (error) {
       setErro(error.message || "Não foi possível criar a conta. Tente novamente.");
     } finally {
       setCarregando(false);
