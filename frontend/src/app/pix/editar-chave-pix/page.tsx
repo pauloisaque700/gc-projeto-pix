@@ -133,8 +133,10 @@ type StatusValidacao =
 export default function MinhasChavesPixPage() {
   const [chave, setChave] = useState(DADOS_INICIAIS.chave);
   const [contaId, setContaId] = useState(DADOS_INICIAIS.contaId);
-  const [status, setStatus] =
-    useState<StatusValidacao>("ocioso");
+  const [resultadoAsync, setResultadoAsync] = useState<{
+    chaveVerificada: string;
+    status: "valida" | "invalida";
+  } | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -142,21 +144,24 @@ export default function MinhasChavesPixPage() {
 
   const tipoChave = identificarTipoChave(chave);
 
-  useEffect(() => {
-    if (!chave.trim()) {
-      setStatus("ocioso");
-      return;
-    }
+  const chaveTrim = chave.trim();
+  const ehFormatoValido = chaveTrim ? formatoValido(chave) : false;
 
-    if (!formatoValido(chave)) {
-      setStatus("invalida");
+  const status: StatusValidacao = !chaveTrim
+    ? "ocioso"
+    : !ehFormatoValido
+    ? "invalida"
+    : resultadoAsync?.chaveVerificada === chave
+    ? resultadoAsync.status
+    : "verificando";
+
+  useEffect(() => {
+    if (!chaveTrim || !ehFormatoValido) {
       return;
     }
 
     const idDestaVerificacao =
       ++idVerificacaoAtual.current;
-
-    setStatus("verificando");
 
     const timeout = setTimeout(async () => {
       const existe = await verificarChaveExiste(chave);
@@ -164,12 +169,15 @@ export default function MinhasChavesPixPage() {
       if (
         idDestaVerificacao === idVerificacaoAtual.current
       ) {
-        setStatus(existe ? "valida" : "invalida");
+        setResultadoAsync({
+          chaveVerificada: chave,
+          status: existe ? "valida" : "invalida",
+        });
       }
     }, 400);
 
     return () => clearTimeout(timeout);
-  }, [chave]);
+  }, [chave, chaveTrim, ehFormatoValido]);
 
   const houveAlteracao =
     chave !== DADOS_INICIAIS.chave ||
@@ -200,7 +208,6 @@ export default function MinhasChavesPixPage() {
 
   const handleSalvar = async () => {
     if (!podeSalvar) return;
-
     setSalvando(true);
 
     try {

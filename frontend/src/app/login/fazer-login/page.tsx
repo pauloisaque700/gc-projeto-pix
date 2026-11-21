@@ -8,7 +8,7 @@ import { Icon } from 'lucide-react'
 import { User, Lock, Mail } from 'lucide-react'
 import { useState } from 'react'
 
-export default ()=>{
+export default function LoginPage() {
     const[email, setEmail] = useState('')
     const[password, setPassword] = useState('')
     return (
