@@ -1,0 +1,159 @@
+name: CI/CD - Projeto PIX
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # 1. QUALIDADE E TESTES (Roda em todo PR e Push)
+  test-and-lint:
+    name: Testes Backend & Lint Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Rodar testes unitários do Backend
+        working-directory: ./backend
+        run: chmod +x mvnw && ./mvnw test
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./frontend/package-lock.json
+
+      - name: Instalar dependências e rodar Lint/Build no Frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+
+  # 2. BUILD ÚNICO DAS IMAGENS DOCKER (Roda após merge na main ou Tag)
+  build-and-push:
+    name: Build Único de Imagens Docker
+    needs: test-and-lint
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Definir Tag da Versão
+        id: meta
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=sha-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Login no GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build e Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:latest
+
+      - name: Build e Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:latest
+
+  # 3. DEPLOY AUTOMÁTICO EM DEV (Todo push na main)
+  deploy-dev:
+    name: Deploy Ambiente DEV
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Simular/Executar Deploy em DEV
+        env:
+          APP_ENV: dev
+          API_URL: ${{ vars.API_URL }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          echo "🚀 Implantando versão $IMAGE_TAG no ambiente $APP_ENV"
+          echo "🔗 Conectando na API: $API_URL"
+          docker compose config
+
+  # 4. DEPLOY EM HOMOLOGAÇÃO (Quando uma Tag v* é criada)
+  deploy-hom:
+    name: Deploy Ambiente HOMOLOGAÇÃO
+    needs: build-and-push
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Simular/Executar Deploy em HOM
+        env:
+          APP_ENV: hom
+          API_URL: ${{ vars.API_URL }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          echo "🧪 Implantando release $IMAGE_TAG em HOMOLOGAÇÃO ($APP_ENV)"
+          echo "🔗 Conectando na API: $API_URL"
+          docker compose config
+
+  # 5. DEPLOY EM PRODUÇÃO (Exige aprovação manual do Coordenador no GitHub)
+  deploy-prd:
+    name: Deploy Ambiente PRODUÇÃO
+    needs: deploy-hom
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Simular/Executar Deploy em PRD
+        env:
+          APP_ENV: prd
+          API_URL: ${{ vars.API_URL }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          echo "✅ Aprovado pelo coordenador! Subindo versão $IMAGE_TAG em PRODUÇÃO ($APP_ENV)"
+          echo "🔗 Conectando na API: $API_URL"
+          docker compose config
