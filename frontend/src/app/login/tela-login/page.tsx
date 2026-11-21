@@ -25,26 +25,40 @@ export default function Perfil() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    const idSalvo = obterUsuarioLogado()
-    if (!idSalvo) {
-      setCarregando(false)
-      setErro('Nenhum usuário encontrado nesta sessão. Cadastre-se para continuar.')
-      return
-    }
+    let ativo = true
 
-    setUsuarioId(idSalvo)
+    async function carregarPerfil() {
+      await Promise.resolve()
+      if (!ativo) return
 
-    buscarUsuario(idSalvo)
-      .then((usuario) => {
+      const idSalvo = obterUsuarioLogado()
+      if (!idSalvo) {
+        setCarregando(false)
+        setErro('Nenhum usuário encontrado nesta sessão. Cadastre-se para continuar.')
+        return
+      }
+
+      setUsuarioId(idSalvo)
+
+      try {
+        const usuario = await buscarUsuario(idSalvo)
+        if (!ativo) return
         setName(usuario.nomeCompleto)
         setEmail(usuario.email)
         setTelefone(usuario.telefone)
         setCpf(usuario.documento)
-      })
-      .catch(() => {
-        setErro('Não foi possível carregar os dados do perfil.')
-      })
-      .finally(() => setCarregando(false))
+      } catch {
+        if (ativo) setErro('Não foi possível carregar os dados do perfil.')
+      } finally {
+        if (ativo) setCarregando(false)
+      }
+    }
+
+    carregarPerfil()
+
+    return () => {
+      ativo = false
+    }
   }, [])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
