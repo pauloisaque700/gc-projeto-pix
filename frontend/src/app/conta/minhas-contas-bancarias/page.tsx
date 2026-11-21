@@ -27,7 +27,6 @@ export default function MinhasContasBancarias() {
   // Função para carregar as contas da API
   async function carregarContas(idUsuario: string) {
     try {
-      setCarregando(true)
       const dados = await listarContasDoUsuario(idUsuario)
       setContas(dados)
       setErro(null)
@@ -40,14 +39,28 @@ export default function MinhasContasBancarias() {
 
   // Verifica a sessão do usuário ao carregar
   useEffect(() => {
-    const idSalvo = obterUsuarioLogado()
-    if (!idSalvo) {
-      setCarregando(false)
-      setErro('Nenhum usuário cadastrado nesta sessão. Cadastre-se para continuar.')
-      return
+    let ativo = true
+
+    async function iniciar() {
+      await Promise.resolve()
+      if (!ativo) return
+
+      const idSalvo = obterUsuarioLogado()
+      if (!idSalvo) {
+        setCarregando(false)
+        setErro('Nenhum usuário cadastrado nesta sessão. Cadastre-se para continuar.')
+        return
+      }
+
+      setUsuarioId(idSalvo)
+      await carregarContas(idSalvo)
     }
-    setUsuarioId(idSalvo)
-    carregarContas(idSalvo)
+
+    iniciar()
+
+    return () => {
+      ativo = false
+    }
   }, [])
 
   // Função para deletar uma conta bancária
@@ -56,6 +69,7 @@ export default function MinhasContasBancarias() {
     setRemovendoId(id)
     try {
       await removerConta(id)
+      setCarregando(true)
       await carregarContas(usuarioId)
     } catch {
       setErro('Não foi possível remover a conta selecionada.')
