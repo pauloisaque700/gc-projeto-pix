@@ -4,10 +4,26 @@ API REST do Projeto PIX, construída com Java 21 e Spring Boot. Nesta primeira e
 
 ## Executar
 
-No PowerShell, dentro de `backend`:
+### Com conexão MySQL
 
-```powershell
-.\mvnw.cmd spring-boot:run
+Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot:run` a partir de `backend`. No PowerShell, use `.\mvnw.cmd spring-boot:run`.
+
+| Variável | Valor esperado |
+| --- | --- |
+| `SPRING_DATASOURCE_URL` | URL JDBC do banco `byebank_db`, por exemplo `jdbc:mysql://<host-mysql>:3306/byebank_db`. Em Docker, use o nome real do serviço MySQL como host. |
+| `SPRING_DATASOURCE_USERNAME` | Usuário MySQL provisionado para a aplicação. |
+| `SPRING_DATASOURCE_PASSWORD` | Senha desse usuário, fornecida pelo ambiente. |
+
+O MySQL deve estar acessível antes da inicialização do backend. Os repositórios continuam em memória nesta etapa.
+
+Para inicializar o esquema na imagem oficial do MySQL, monte o `init.sql` da raiz do projeto em `/docker-entrypoint-initdb.d/01-init.sql`, somente para leitura. O entrypoint aplica o script na primeira inicialização de um volume de dados vazio. Para um volume já existente sem o esquema, aplique o script uma vez com um usuário autorizado. O Spring Boot e o Hibernate deixam a inicialização do esquema a cargo desse ambiente. Consulte a [documentação da imagem oficial](https://hub.docker.com/_/mysql).
+
+### Em memória, sem MySQL
+
+Ative o perfil opcional `memoria` para desenvolver ou demonstrar a API sem um servidor MySQL.
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=memoria
 ```
 
 ## API de usuários
