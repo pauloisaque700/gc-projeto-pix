@@ -50,7 +50,7 @@ resource "docker_container" "backend" {
 
 resource "docker_container" "frontend" {
   name  = "pix-frontend-${var.env_name}"
-  image = "ghcr.io/SEU_USUARIO/SEU_REPO-frontend:${var.image_tag}"
+  image = "ghcr.io/pauloisaque700/gc-projeto-pix-frontend:${var.image_tag}"
 
   ports {
     internal = 3000
