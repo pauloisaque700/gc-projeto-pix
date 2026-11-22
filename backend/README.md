@@ -11,12 +11,12 @@ Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot
 | Variável | Valor esperado |
 | --- | --- |
 | `SPRING_DATASOURCE_URL` | URL JDBC do banco `byebank_db`, por exemplo `jdbc:mysql://<host-mysql>:3306/byebank_db`. Em Docker, use o nome real do serviço MySQL como host. |
-| `SPRING_DATASOURCE_USERNAME` | Usuário MySQL provisionado para a aplicação. |
-| `SPRING_DATASOURCE_PASSWORD` | Senha desse usuário, fornecida pelo ambiente. |
+| `SPRING_DATASOURCE_USERNAME` | Usuário MySQL configurado para a aplicação. |
+| `SPRING_DATASOURCE_PASSWORD` | Senha desse usuário. |
 
-O MySQL deve estar acessível antes da inicialização do backend. Os repositórios continuam em memória nesta etapa.
+O MySQL deve estar acessível antes da inicialização do backend. A conexão JDBC com MySQL está preparada, mas os repositórios da aplicação continuam em memória e ainda não usam JPA para persistir os dados no banco.
 
-Para inicializar o esquema na imagem oficial do MySQL, monte o `init.sql` da raiz do projeto em `/docker-entrypoint-initdb.d/01-init.sql`, somente para leitura. O entrypoint aplica o script na primeira inicialização de um volume de dados vazio. Para um volume já existente sem o esquema, aplique o script uma vez com um usuário autorizado. O Spring Boot e o Hibernate deixam a inicialização do esquema a cargo desse ambiente. Consulte a [documentação da imagem oficial](https://hub.docker.com/_/mysql).
+Na integração com Docker, a inicialização do esquema usa o arquivo `init.sql` da raiz. A imagem oficial do MySQL executa os scripts disponibilizados em `/docker-entrypoint-initdb.d/` somente na primeira inicialização de um volume vazio. O Spring Boot e o Hibernate deixam a inicialização do esquema a cargo desse ambiente. Consulte a [documentação da imagem oficial do MySQL](https://hub.docker.com/_/mysql).
 
 ### Em memória, sem MySQL
 
@@ -57,17 +57,17 @@ Exemplo de cadastro:
 | `DELETE` | `/api/contas/{id}` | Remove uma conta. |
 | `GET` | `/api/usuarios/{usuarioId}/contas` | Lista as contas de um usuário. |
 
-Exemplo de criação de conta:
+Exemplo de criação de conta com a numeração automática integrada:
 
 ```json
 {
   "usuarioId": "substitua-pelo-id-do-usuario",
   "agencia": "0001",
-  "numero": "123456"
+  "tipoConta": "CORRENTE"
 }
 ```
 
-Cada conta inicia com saldo `0.00`. A remoção de contas e de usuários é feita em cascata (veja [Cascade de remoção](#cascade-de-remoção)).
+Cada conta recebe um número aleatório de seis dígitos, único na agência, e inicia com saldo `0.00`. A remoção de contas e de usuários é feita em cascata (veja [Cascade de remoção](#cascade-de-remoção)).
 
 ## Cascade de remoção
 
