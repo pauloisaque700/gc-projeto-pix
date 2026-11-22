@@ -88,7 +88,7 @@ export default function Cadastro() {
             })
 
             salvarUsuarioLogado(usuario.id)
-            router.push('/conta/minhas-contas-bancarias')
+            router.push('/tela-principal')
         } catch (erroCapturado) {
             if (erroCapturado instanceof ApiError) {
                 setErro(erroCapturado.message)
@@ -106,7 +106,7 @@ export default function Cadastro() {
     return (
         <Tela>
             <img src={"/bye.png"} className="w-60 h-10 object-contain mx-auto flex items-center justify-center mb-6"/>
-            <SmartphoneHeader title="Seja bem-vindo" backToUrl="/login/tela-login"/>
+            <SmartphoneHeader title="Seja bem-vindo" backToUrl="tela-login"/>
             <div className="text-center text-sm text-gray-500 font-normal leading-relaxed max-w-xs mx-auto -mt-3">
                 Crie sua conta aqui no ByeBank!
             </div>
