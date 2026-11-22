@@ -1,7 +1,6 @@
 package com.byebank.pix.application.conta;
 
 import com.byebank.pix.application.comum.RecursoNaoEncontradoException;
-import com.byebank.pix.application.comum.RegraDeNegocioException;
 import com.byebank.pix.application.pix.AssociarChavePixCommand;
 import com.byebank.pix.application.pix.ReceberPixExternoCommand;
 import com.byebank.pix.application.pix.ServicoChavePix;
@@ -27,8 +26,15 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ServicoContaBancariaTest {
     private RepositorioUsuarioEmMemoria repositorioUsuario;
@@ -43,7 +49,7 @@ class ServicoContaBancariaTest {
     @BeforeEach
     void preparar() {
         repositorioUsuario = new RepositorioUsuarioEmMemoria();
-        repositorioConta = new RepositorioContaBancariaEmMemoria();
+        repositorioConta = spy(new RepositorioContaBancariaEmMemoria());
         repositorioChave = new RepositorioChavePixEmMemoria();
         repositorioTransferencia = new RepositorioTransferenciaPixEmMemoria();
         titular = Usuario.cadastrar(
@@ -62,33 +68,45 @@ class ServicoContaBancariaTest {
 
     @Test
     void deveCadastrarContaComSaldoZero() {
-        ContaBancaria conta = servicoConta.cadastrar(new CadastroContaBancariaCommand(
-                titular.getId(), "0001", "123456", null
-        ));
+        ContaBancaria conta = criarConta();
 
         assertEquals(titular.getId(), conta.getUsuarioId());
         assertEquals("0.00", conta.getSaldo().valor().toPlainString());
     }
 
     @Test
-    void deveImpedirIdentificacaoDeContaDuplicada() {
-        CadastroContaBancariaCommand comando = new CadastroContaBancariaCommand(titular.getId(), "0001", "123456", null);
-        servicoConta.cadastrar(comando);
+    void deveTentarOutroNumeroAoEncontrarColisaoNaAgencia() {
+        when(repositorioConta.existePorAgenciaENumero(eq("0001"), anyString())).thenReturn(true, false);
 
-        assertThrows(RegraDeNegocioException.class, () -> servicoConta.cadastrar(comando));
+        ContaBancaria conta = criarConta();
+
+        verify(repositorioConta, times(2)).existePorAgenciaENumero(eq("0001"), anyString());
+        assertTrue(repositorioConta.buscarPorId(conta.getId()).isPresent());
+    }
+
+    @Test
+    void deveLiberarIdentificacaoAnteriorAoAtualizarConta() {
+        ContaBancaria conta = criarConta();
+        String numeroAnterior = conta.getNumero();
+
+        servicoConta.atualizar(conta.getId(), new AtualizacaoContaBancariaCommand("0002", numeroAnterior));
+
+        assertFalse(repositorioConta.existePorAgenciaENumero("0001", numeroAnterior));
+        assertTrue(repositorioConta.existePorAgenciaENumero("0002", numeroAnterior));
     }
 
     @Test
     void deveListarContasDoUsuario() {
-        servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", "123456", null));
-        servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", "654321", null));
+        ContaBancaria primeiraConta = criarConta();
+        ContaBancaria segundaConta = criarConta();
 
+        assertNotEquals(primeiraConta.getNumero(), segundaConta.getNumero());
         assertEquals(2, servicoConta.listarPorUsuario(titular.getId()).size());
     }
 
     @Test
     void deveApagarChavesPixAoRemoverConta() {
-        ContaBancaria conta = criarConta("111111");
+        ContaBancaria conta = criarConta();
         associarEmail(conta, "a@exemplo.com");
         associarEmail(conta, "b@exemplo.com");
 
@@ -102,8 +120,8 @@ class ServicoContaBancariaTest {
 
     @Test
     void deveApagarTransferenciasOndeAContaEhOrigemOuDestino() {
-        ContaBancaria contaA = criarConta("111111");
-        ContaBancaria contaB = criarConta("222222");
+        ContaBancaria contaA = criarConta();
+        ContaBancaria contaB = criarConta();
         associarEmail(contaA, "a@exemplo.com");
         associarEmail(contaB, "b@exemplo.com");
         TransferenciaPix recebimento = servicoTransferencia.receberExterno(
@@ -124,7 +142,7 @@ class ServicoContaBancariaTest {
 
     @Test
     void deveFalharAoRemoverContaInexistenteSemAfetarOutrasContas() {
-        ContaBancaria conta = criarConta("111111");
+        ContaBancaria conta = criarConta();
         associarEmail(conta, "a@exemplo.com");
         servicoTransferencia.receberExterno(
                 new ReceberPixExternoCommand("a@exemplo.com", new BigDecimal("25.00"), "Banco Externo")
@@ -137,8 +155,8 @@ class ServicoContaBancariaTest {
         assertEquals("25.00", servicoConta.buscarPorId(conta.getId()).getSaldo().valor().toPlainString());
     }
 
-    private ContaBancaria criarConta(String numero) {
-        return servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", numero, null));
+    private ContaBancaria criarConta() {
+        return servicoConta.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", null));
     }
 
     private void associarEmail(ContaBancaria conta, String email) {

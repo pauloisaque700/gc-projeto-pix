@@ -13,19 +13,12 @@ export default function CriarContaBancaria() {
   const router = useRouter();
   const [tipoConta, setTipoConta] = useState<TipoConta>("corrente");
   const [agencia, setAgencia] = useState<string>("");
-  const [conta, setConta] = useState<string>("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const handleAgenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valor = e.target.value.replace(/\D/g, "");
     setAgencia(valor);
-  };
-
-  const handleContaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Permite dígitos e o hífen
-    const valor = e.target.value.replace(/[^0-9-]/g, "");
-    setConta(valor);
   };
 
   const handleSubmit = async () => {
@@ -37,12 +30,8 @@ export default function CriarContaBancaria() {
       return;
     }
 
-    // O backend exige apenas números para agência e conta.
-    const numeroLimpo = conta.replace(/\D/g, "");
-    const agenciaLimpa = agencia.replace(/\D/g, "");
-
-    if (!agenciaLimpa || !numeroLimpo) {
-      setErro("Preencha a agência e a conta corretamente.");
+    if (!agencia) {
+      setErro("Informe a agência.");
       return;
     }
 
@@ -50,8 +39,7 @@ export default function CriarContaBancaria() {
     try {
       await criarConta({
         usuarioId,
-        agencia: agenciaLimpa,
-        numero: numeroLimpo,
+        agencia,
         tipoConta: tipoConta === "corrente" ? "CORRENTE" : "POUPANCA",
       });
 
@@ -153,25 +141,6 @@ export default function CriarContaBancaria() {
           </div>
         </section>
 
-        <section style={styles.campo}>
-          <label style={styles.rotulo} htmlFor="conta">
-            Conta
-          </label>
-          <div style={styles.inputWrapper}>
-            <span style={styles.inputIcone}>💳</span>
-            <input
-              id="conta"
-              type="text"
-              inputMode="numeric"
-              placeholder="Ex: 12345-6"
-              value={conta}
-              onChange={handleContaChange}
-              style={styles.input}
-              maxLength={8}
-            />
-          </div>
-        </section>
-
         {erro && (
           <div style={{ color: "red", fontSize: 14, marginBottom: 16, textAlign: "center" }}>
             {erro}
@@ -181,10 +150,10 @@ export default function CriarContaBancaria() {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!agencia || !conta || carregando}
+          disabled={!agencia || carregando}
           style={{
             ...styles.botaoCriar,
-            ...(!agencia || !conta || carregando ? styles.botaoCriarDesabilitado : {}),
+            ...(!agencia || carregando ? styles.botaoCriarDesabilitado : {}),
           }}
         >
           {carregando ? "Criando..." : "Criar conta"}

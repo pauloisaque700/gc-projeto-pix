@@ -86,8 +86,8 @@ class ServicoUsuarioTest {
     @Test
     void deveRemoverUsuarioEmCascataComContasChavesETransferencias() {
         Usuario usuario = servicoUsuario.cadastrar(comandoPadrao());
-        ContaBancaria conta1 = criarConta(usuario, "111111");
-        ContaBancaria conta2 = criarConta(usuario, "222222");
+        ContaBancaria conta1 = criarConta(usuario);
+        ContaBancaria conta2 = criarConta(usuario);
         ChavePix chave1 = associarEmail(conta1, "c1@exemplo.com");
         ChavePix chave2 = associarEmail(conta2, "c2@exemplo.com");
         TransferenciaPix recebimento = receberExterno("c1@exemplo.com", "100.00");
@@ -119,8 +119,8 @@ class ServicoUsuarioTest {
     void deveApagarTransferenciaCruzadaEManterSaldoDaContaDoOutroUsuario() {
         Usuario usuarioA = servicoUsuario.cadastrar(comandoPadrao());
         Usuario usuarioB = servicoUsuario.cadastrar(comandoOutroUsuario());
-        ContaBancaria contaA1 = criarConta(usuarioA, "111111");
-        ContaBancaria contaB1 = criarConta(usuarioB, "222222");
+        ContaBancaria contaA1 = criarConta(usuarioA);
+        ContaBancaria contaB1 = criarConta(usuarioB);
         associarEmail(contaA1, "a1@exemplo.com");
         ChavePix chaveB1 = associarEmail(contaB1, "b1@exemplo.com");
         receberExterno("a1@exemplo.com", "100.00");
@@ -139,8 +139,8 @@ class ServicoUsuarioTest {
         assertTrue(repositorioTransferencia.listarPorConta(contaB1.getId()).isEmpty());
     }
 
-    private ContaBancaria criarConta(Usuario usuario, String numero) {
-        return servicoConta.cadastrar(new CadastroContaBancariaCommand(usuario.getId(), "0001", numero, null));
+    private ContaBancaria criarConta(Usuario usuario) {
+        return servicoConta.cadastrar(new CadastroContaBancariaCommand(usuario.getId(), "0001", null));
     }
 
     private ChavePix associarEmail(ContaBancaria conta, String email) {

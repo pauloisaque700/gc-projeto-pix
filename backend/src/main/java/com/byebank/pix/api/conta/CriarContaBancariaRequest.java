@@ -14,10 +14,6 @@ public record CriarContaBancariaRequest(
         @Pattern(regexp = "\\d{1,10}", message = "A agência deve conter de 1 a 10 dígitos.")
         String agencia,
 
-        @NotBlank(message = "O número da conta é obrigatório.")
-        @Pattern(regexp = "\\d{1,20}", message = "O número da conta deve conter de 1 a 20 dígitos.")
-        String numero,
-
         @Pattern(regexp = "CORRENTE|POUPANCA")
         String tipoConta
 ) {

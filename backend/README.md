@@ -47,11 +47,11 @@ Exemplo de criação de conta:
 {
   "usuarioId": "substitua-pelo-id-do-usuario",
   "agencia": "0001",
-  "numero": "123456"
+  "tipoConta": "CORRENTE"
 }
 ```
 
-Cada conta inicia com saldo `0.00`. A remoção de contas e de usuários é feita em cascata (veja [Cascade de remoção](#cascade-de-remoção)).
+Cada conta recebe um número aleatório de seis dígitos, único na agência, e inicia com saldo `0.00`. A remoção de contas e de usuários é feita em cascata (veja [Cascade de remoção](#cascade-de-remoção)).
 
 ## Cascade de remoção
 

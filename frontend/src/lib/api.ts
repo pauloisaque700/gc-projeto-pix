@@ -132,7 +132,6 @@ export type ContaBancariaResponse = Conta;
 export interface CriarContaBancariaRequest {
   usuarioId: string;
   agencia: string;
-  numero: string;
   tipoConta: "CORRENTE" | "POUPANCA";
 }
 
@@ -141,10 +140,10 @@ export interface AtualizarContaBancariaRequest {
   numero: string;
 }
 
-export function criarConta(dados: CriarContaBancariaRequest): Promise<Conta> {
+export function criarConta({ usuarioId, agencia, tipoConta }: CriarContaBancariaRequest): Promise<Conta> {
   return request<Conta>("/api/contas", {
     method: "POST",
-    body: JSON.stringify(dados),
+    body: JSON.stringify({ usuarioId, agencia, tipoConta }),
   });
 }
 
