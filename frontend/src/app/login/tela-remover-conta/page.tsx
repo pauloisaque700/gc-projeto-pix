@@ -67,7 +67,7 @@ function ConfirmarRemocao({ contaId }: { contaId: string | null }) {
     setErro('')
     try {
       await removerConta(contaId)
-      router.push('/tela-principal')
+      router.push('/tela-login')
     } catch (error) {
       setErro(error instanceof Error ? error.message : 'Não foi possível remover a conta.')
       remocaoEmAndamento.current = false

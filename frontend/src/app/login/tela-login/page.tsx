@@ -1,207 +1,132 @@
 "use client"
-import Card from '../../../components/Card'
+import Link from 'next/link'
 import Tela from '../../../components/Tela'
-import SmartphoneHeader from '../../../components/SmartphoneHeader'
 import Input from '../../../components/Input'
 import BotaoGrande from '../../../components/BotaoGrande'
-import { User, Mail, Phone, CreditCard, Camera, AlertCircle, CheckCircle2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { atualizarUsuario, buscarUsuario, ApiError } from '../../../lib/api'
-import { obterUsuarioLogado } from '../../../lib/session'
+import { Mail, Lock, Eye, EyeOff, AlertCircle, User } from 'lucide-react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-export default function Perfil() {
-  const [usuarioId, setUsuarioId] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [telefone, setTelefone] = useState('')
-  const [cpf, setCpf] = useState('')
+export default function Login() {
+    const router = useRouter()
 
-  const [carregando, setCarregando] = useState(true)
-  const [salvando, setSalvando] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
-  const [sucesso, setSucesso] = useState(false)
+    const [email, setEmail] = useState('')
+    const [senha, setSenha] = useState('')
+    const [mostrarSenha, setMostrarSenha] = useState(false)
 
-  const [profileImage, setProfileImage] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+    const [loading, setLoading] = useState(false)
+    const [erro, setErro] = useState<string | null>(null)
 
-  useEffect(() => {
-    let ativo = true
+    const handleEntrar = async () => {
+        setErro(null)
 
-    async function carregarPerfil() {
-      await Promise.resolve()
-      if (!ativo) return
+        if (!email || !senha) {
+            setErro('Preencha e-mail e senha para continuar.')
+            return
+        }
 
-      const idSalvo = obterUsuarioLogado()
-      if (!idSalvo) {
-        setCarregando(false)
-        setErro('Nenhum usuário encontrado nesta sessão. Cadastre-se para continuar.')
-        return
-      }
-
-      setUsuarioId(idSalvo)
-
-      try {
-        const usuario = await buscarUsuario(idSalvo)
-        if (!ativo) return
-        setName(usuario.nomeCompleto)
-        setEmail(usuario.email)
-        setTelefone(usuario.telefone)
-        setCpf(usuario.documento)
-      } catch {
-        if (ativo) setErro('Não foi possível carregar os dados do perfil.')
-      } finally {
-        if (ativo) setCarregando(false)
-      }
+        setLoading(true)
+        try {
+            // TODO: chamar aqui a função de login da sua API
+            // const usuario = await fazerLogin({ email, senha })
+            // salvarUsuarioLogado(usuario.id)
+            router.push('/tela-principal')
+        } catch (erroCapturado) {
+            if (erroCapturado instanceof Error) {
+                setErro(erroCapturado.message)
+            } else {
+                setErro('Não foi possível entrar. Tente novamente.')
+            }
+        } finally {
+            setLoading(false)
+        }
     }
 
-    carregarPerfil()
+    return (
+        <Tela>
+            <div className="flex flex-col flex-1 min-h-screen w-full px-6 py-10">
+                {/* Topo: logo e títulos */}
+                <div className="flex flex-col items-center gap-3">
+                    <img src="/bye.png" className="w-60 h-10 object-contain" />
+                    <p className="text-sm text-gray-500">Dê adeus ao seu dinheiro</p>
+                </div>
 
-    return () => {
-      ativo = false
-    }
-  }, [])
+                <div className="flex flex-col items-center text-center mt-10 mb-10">
+                    <h1 className="text-3xl font-bold text-slate-900">Bem-vindo de volta</h1>
+                    <p className="text-sm text-gray-500 mt-3">
+                        Acesse sua conta para gerenciar seus projetos.
+                    </p>
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const imageUrl = URL.createObjectURL(file)
-      setProfileImage(imageUrl)
-    }
-  }
+                    {/* Imagem de usuário */}
+                    <div className="w-28 h-28 mt-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-2 border-gray-100 shadow-sm">
+                        <User className="w-20 h-20 stroke-[1.8] text-gray-500" />
+                    </div>
+                </div>
 
-  const handleSalvar = async () => {
-    if (!usuarioId) return
+                {/* Campos, com bastante espaço entre si */}
+                <div className="flex flex-col gap-8">
+                    <Input
+                        label="Endereço de e-mail"
+                        placeholder="nome@exemplo.com"
+                        icon={<Mail className="w-5 h-5 stroke-[1.8]" />}
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
 
-    setErro(null)
-    setSucesso(false)
+                    <div className="relative">
+                        <Link
+                            href="/login/esqueci-senha"
+                            className="absolute top-0 right-0 text-sm font-medium text-[#4F46E5] hover:text-[#4338CA]"
+                        >
+                            Esqueceu a senha?
+                        </Link>
+                        <Input
+                            label="Senha"
+                            placeholder="••••••••"
+                            icon={<Lock className="w-5 h-5" />}
+                            type={mostrarSenha ? 'text' : 'password'}
+                            value={senha}
+                            onChange={(e) => setSenha(e.target.value)}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setMostrarSenha(!mostrarSenha)}
+                            aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                            className="absolute bottom-0 right-4 h-12 flex items-center text-gray-400 hover:text-gray-600 cursor-pointer"
+                        >
+                            {mostrarSenha ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                        </button>
+                    </div>
 
-    if (!name || !email || !telefone) {
-      setErro('Preencha nome, e-mail e telefone antes de salvar.')
-      return
-    }
+                    {erro && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-sm text-red-700">
+                            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5 stroke-[2]" />
+                            <p className="text-xs text-red-600 leading-relaxed">{erro}</p>
+                        </div>
+                    )}
+                </div>
 
-    setSalvando(true)
-    try {
-      const atualizado = await atualizarUsuario(usuarioId, {
-        nomeCompleto: name,
-        email,
-        telefone,
-      })
-      setName(atualizado.nomeCompleto)
-      setEmail(atualizado.email)
-      setTelefone(atualizado.telefone)
-      setSucesso(true)
-    } catch (erroCapturado) {
-      if (erroCapturado instanceof ApiError) {
-        setErro(erroCapturado.message)
-      } else if (erroCapturado instanceof Error) {
-        setErro(erroCapturado.message)
-      } else {
-        setErro('Não foi possível salvar as alterações. Tente novamente.')
-      }
-    } finally {
-      setSalvando(false)
-    }
-  }
+                {/* Rodapé: pb-20 sobe o botão e o "Criar conta" */}
+                <div className="mt-auto pt-10 pb-20 flex flex-col gap-6">
+                    <BotaoGrande
+                        text="Entrar"
+                        bgClass="bg-[#4F46E5] hover:bg-[#4338CA]"
+                        textClass="text-white font-semibold"
+                        widthClass="w-full"
+                        isLoading={loading}
+                        disabled={loading}
+                        onClick={handleEntrar}
+                    />
 
-  return (
-    <Tela>
-      <SmartphoneHeader title="Perfil" backToUrl="/conta/minhas-contas-bancarias" />
-
-      <div className="relative w-28 h-28 mx-auto my-4 mb-6">
-        <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-2 border-gray-100 shadow-sm">
-          {profileImage ? (
-            <img
-              src={profileImage}
-              alt="Foto de Perfil"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <User className="w-20 h-20 stroke-[1.8] text-gray-500" />
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          aria-label="Alterar foto de perfil"
-          className="absolute bottom-0 right-0 bg-[#4F46E5] hover:bg-[#4338CA] text-white p-2 rounded-full shadow-md transition-colors cursor-pointer flex items-center justify-center border-2 border-white"
-        >
-          <Camera className="w-4 h-4" />
-        </button>
-
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleImageChange}
-          accept="image/*"
-          className="hidden"
-        />
-      </div>
-
-      <Card>
-        <Input
-          label="Nome completo"
-          placeholder="Nome completo"
-          icon={<User className="w-5 h-5 stroke-[1.8]" />}
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Input
-          label="E-mail"
-          placeholder="E-mail"
-          icon={<Mail className="w-5 h-5 stroke-[1.8]" />}
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <Input
-          label="Telefone"
-          placeholder="Telefone"
-          icon={<Phone className="w-5 h-5" />}
-          type="tel"
-          value={telefone}
-          onChange={(e) => setTelefone(e.target.value)}
-        />
-        <div className="flex flex-col gap-1">
-          <Input
-            label="CPF"
-            placeholder="CPF"
-            icon={<CreditCard className="w-5 h-5 stroke-[1.8]" />}
-            type="text"
-            value={cpf}
-            onChange={(e) => setCpf(e.target.value)}
-          />
-          <span className="text-[11px] text-slate-400">
-            O CPF é o documento de identificação da conta e não pode ser alterado.
-          </span>
-        </div>
-
-        {erro && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-sm text-red-700">
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5 stroke-[2]" />
-            <p className="text-xs text-red-600 leading-relaxed">{erro}</p>
-          </div>
-        )}
-
-        {sucesso && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3 text-sm text-emerald-700">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5 stroke-[2]" />
-            <p className="text-xs text-emerald-600 leading-relaxed">Dados atualizados com sucesso.</p>
-          </div>
-        )}
-      </Card>
-
-      <BotaoGrande
-        text="Salvar alterações"
-        bgClass="bg-[#4F46E5] hover:bg-[#4338CA]"
-        textClass="text-white font-semibold"
-        widthClass="w-full"
-        isLoading={carregando || salvando}
-        disabled={carregando || salvando || !usuarioId}
-        onClick={handleSalvar}
-      />
-    </Tela>
-  )
+                    <p className="text-center text-sm text-gray-500">
+                        Não tem uma conta?{' '}
+                        <Link href="/login/cadastrar-usuario" className="font-semibold text-[#4F46E5] hover:text-[#4338CA]">
+                            Criar conta
+                        </Link>
+                    </p>
+                </div>
+            </div>
+        </Tela>
+    )
 }

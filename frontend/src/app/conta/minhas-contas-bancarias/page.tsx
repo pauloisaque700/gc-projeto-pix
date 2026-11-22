@@ -235,17 +235,6 @@ export default function MinhasContasBancarias() {
             onClick={() => router.push('/login/historico-de-logins')}
           />
         </div>
-
-        {/* Botão de segurança caso não haja usuário autenticado */}
-        {!usuarioId && !carregando && (
-          <BotaoGrande
-            text="Ir para cadastro"
-            bgClass="bg-[#4F46E5] hover:bg-[#4338CA]"
-            textClass="text-white font-semibold"
-            widthClass="w-full"
-            onClick={() => router.push('/login/cadastrar-usuario')}
-          />
-        )}
       </div>
     </Tela>
   )
