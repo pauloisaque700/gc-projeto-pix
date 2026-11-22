@@ -22,6 +22,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,12 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class ServicoContaBancariaTest {
     private RepositorioUsuarioEmMemoria repositorioUsuario;
@@ -49,7 +45,7 @@ class ServicoContaBancariaTest {
     @BeforeEach
     void preparar() {
         repositorioUsuario = new RepositorioUsuarioEmMemoria();
-        repositorioConta = spy(new RepositorioContaBancariaEmMemoria());
+        repositorioConta = new RepositorioContaBancariaEmMemoria();
         repositorioChave = new RepositorioChavePixEmMemoria();
         repositorioTransferencia = new RepositorioTransferenciaPixEmMemoria();
         titular = Usuario.cadastrar(
@@ -76,12 +72,24 @@ class ServicoContaBancariaTest {
 
     @Test
     void deveTentarOutroNumeroAoEncontrarColisaoNaAgencia() {
-        when(repositorioConta.existePorAgenciaENumero(eq("0001"), anyString())).thenReturn(true, false);
+        List<String> numerosConsultados = new ArrayList<>();
+        RepositorioContaBancariaEmMemoria repositorioComColisao = new RepositorioContaBancariaEmMemoria() {
+            @Override
+            public boolean existePorAgenciaENumero(String agencia, String numero) {
+                assertEquals("0001", agencia);
+                numerosConsultados.add(numero);
+                return numerosConsultados.size() == 1 || super.existePorAgenciaENumero(agencia, numero);
+            }
+        };
+        ServicoContaBancaria servicoComColisao = new ServicoContaBancaria(
+                repositorioComColisao, repositorioUsuario, repositorioChave, repositorioTransferencia
+        );
 
-        ContaBancaria conta = criarConta();
+        ContaBancaria conta = servicoComColisao.cadastrar(new CadastroContaBancariaCommand(titular.getId(), "0001", null));
 
-        verify(repositorioConta, times(2)).existePorAgenciaENumero(eq("0001"), anyString());
-        assertTrue(repositorioConta.buscarPorId(conta.getId()).isPresent());
+        assertEquals(2, numerosConsultados.size());
+        assertEquals(numerosConsultados.getLast(), conta.getNumero());
+        assertEquals(conta, repositorioComColisao.buscarPorId(conta.getId()).orElseThrow());
     }
 
     @Test

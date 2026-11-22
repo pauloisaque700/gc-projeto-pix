@@ -6,8 +6,8 @@ import SmartphoneHeader from '../../../components/SmartphoneHeader'
 import Input from '../../../components/Input'
 import BotaoGrande from '../../../components/BotaoGrande'
 import { User, Mail, Phone, CreditCard, Landmark, Hash, Wallet, AlertCircle, CheckCircle2, Camera } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState, type ReactNode } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { atualizarConta, atualizarUsuario, buscarUsuario, definirLimiteDiario, definirNotificacao, listarContasDoUsuario, type Conta } from '../../../lib/api'
 import { obterUsuarioLogado } from '../../../lib/session'
 
@@ -26,7 +26,20 @@ function CampoLeitura({ label, value, icon }: { label: string; value: string; ic
   )
 }
 
-export default function EditarConta() {
+export default function PerfilPage() {
+  return (
+    <Suspense fallback={<Tela><p role="status">Carregando dados...</p></Tela>}>
+      <PerfilComContaSelecionada />
+    </Suspense>
+  )
+}
+
+function PerfilComContaSelecionada() {
+  const contaSelecionadaId = useSearchParams().get('contaId')
+  return <EditarConta key={contaSelecionadaId === null ? 'perfil' : `conta:${contaSelecionadaId}`} contaSelecionadaId={contaSelecionadaId} />
+}
+
+function EditarConta({ contaSelecionadaId }: { contaSelecionadaId: string | null }) {
   const router = useRouter()
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -60,13 +73,15 @@ export default function EditarConta() {
         setTelefone(usuario.telefone)
         setCpf(usuario.documento)
         setTipoDocumento(usuario.tipoDocumento)
-        const primeiraConta = contas[0] ?? null
-        setConta(primeiraConta)
-        if (primeiraConta) {
-          setAgencia(primeiraConta.agencia)
-          setNumeroConta(primeiraConta.numero)
-          setLimite(formatarMoeda(primeiraConta.limiteDiario))
-          setNotificacao(primeiraConta.notificacao)
+        const contaSelecionada = contaSelecionadaId === null
+          ? contas[0]
+          : contas.find((item) => item.id === contaSelecionadaId)
+        setConta(contaSelecionada ?? null)
+        if (contaSelecionada) {
+          setAgencia(contaSelecionada.agencia)
+          setNumeroConta(contaSelecionada.numero)
+          setLimite(formatarMoeda(contaSelecionada.limiteDiario))
+          setNotificacao(contaSelecionada.notificacao)
         }
       } catch (error) {
         if (ativo) setErro(error instanceof Error ? error.message : 'Não foi possível carregar o perfil.')
@@ -76,7 +91,7 @@ export default function EditarConta() {
     }
     void carregar()
     return () => { ativo = false }
-  }, [])
+  }, [contaSelecionadaId])
 
   const handleLimiteChange = (valor: string) => {
     const digitos = valor.replace(/\D/g, '')
@@ -153,6 +168,10 @@ export default function EditarConta() {
 
   const bloqueado = carregando || salvando || !usuarioId
   const icone = 'w-5 h-5 stroke-[1.8]'
+  const mensagemSemConta = carregando ? 'Carregando conta...'
+    : !usuarioId ? 'Dados da conta indisponíveis.'
+    : contaSelecionadaId !== null ? 'A conta solicitada não está disponível neste perfil.'
+    : 'Você ainda não possui conta bancária.'
 
   return (
     <Tela>
@@ -194,7 +213,7 @@ export default function EditarConta() {
                 ))}
               </fieldset>
               <CampoLeitura label="Status" value={conta.status === 'ATIVA' ? 'Ativa' : 'Bloqueada'} icon={conta.status === 'ATIVA' ? <CheckCircle2 className={icone} /> : <AlertCircle className={icone} />} />
-            </> : <p className="text-sm text-slate-500">{carregando ? 'Carregando conta...' : usuarioId ? 'Você ainda não possui conta bancária.' : 'Dados da conta indisponíveis.'}</p>}
+            </> : <p className="text-sm text-slate-500">{mensagemSemConta}</p>}
           </Card>
         </fieldset>
 

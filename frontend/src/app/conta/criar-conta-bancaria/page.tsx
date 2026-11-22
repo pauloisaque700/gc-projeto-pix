@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import SmartphoneHeader from "@/src/components/SmartphoneHeader";
 import Tela from "@/src/components/Tela";
-import { criarConta } from "@/src/lib/api";
+import Card from "@/src/components/Card";
+import { criarConta, type Conta } from "@/src/lib/api";
 import { obterUsuarioLogado } from "@/src/lib/session";
 
 type TipoConta = "corrente" | "poupanca";
@@ -15,6 +16,7 @@ export default function CriarContaBancaria() {
   const [agencia, setAgencia] = useState<string>("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [contaCriada, setContaCriada] = useState<Conta | null>(null);
 
   const handleAgenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valor = e.target.value.replace(/\D/g, "");
@@ -37,14 +39,13 @@ export default function CriarContaBancaria() {
 
     setCarregando(true);
     try {
-      await criarConta({
+      const conta = await criarConta({
         usuarioId,
         agencia,
         tipoConta: tipoConta === "corrente" ? "CORRENTE" : "POUPANCA",
       });
 
-      // Se der certo, redireciona para o perfil
-      router.push("/login/tela-perfil");
+      setContaCriada(conta);
     } catch (error) {
       const mensagem =
         error instanceof Error
@@ -55,6 +56,28 @@ export default function CriarContaBancaria() {
       setCarregando(false);
     }
   };
+
+  if (contaCriada) {
+    return (
+      <Tela>
+        <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/login/tela-perfil" />
+        <Card>
+          <div role="status">
+            <h2 style={styles.tituloSecao}>Conta criada com sucesso</h2>
+            <p>Agência <strong>{contaCriada.agencia}</strong></p>
+            <p>Número da conta <strong>{contaCriada.numero}</strong></p>
+          </div>
+          <button
+            type="button"
+            style={styles.botaoCriar}
+            onClick={() => router.push(`/login/tela-perfil?contaId=${encodeURIComponent(contaCriada.id)}`)}
+          >
+            Ver conta criada
+          </button>
+        </Card>
+      </Tela>
+    );
+  }
 
   return (
     <Tela>
