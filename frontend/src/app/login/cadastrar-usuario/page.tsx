@@ -4,8 +4,8 @@ import Tela from '../../../components/Tela'
 import SmartphoneHeader from '../../../components/SmartphoneHeader'
 import Input from '../../../components/Input'
 import BotaoGrande from '../../../components/BotaoGrande'
-import { User, Lock, Mail, Phone, CreditCard, AlertCircle } from 'lucide-react'
-import { useState } from 'react'
+import { User, Mail, Phone, CreditCard, AlertCircle } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { criarUsuario, ApiError } from '../../../lib/api'
 import { salvarUsuarioLogado } from '../../../lib/session'
@@ -36,29 +36,20 @@ export default function Cadastro() {
     const [cpf, setCpf] = useState('')
     const [email, setEmail] = useState('')
     const [telefone, setTelefone] = useState('')
-    const [senha, setSenha] = useState('')
-    const [confirmarSenha, setConfirmarSenha] = useState('')
 
+    const cadastroEmAndamento = useRef(false)
     const [loading, setLoading] = useState(false)
     const [erro, setErro] = useState<string | null>(null)
     const [camposComErro, setCamposComErro] = useState<Record<string, string>>({})
 
     const handleCadastrar = async () => {
+        if (cadastroEmAndamento.current) return
+
         setErro(null)
         setCamposComErro({})
 
-        if (!nome || !cpf || !email || !telefone || !senha || !confirmarSenha) {
+        if (!nome || !cpf || !email || !telefone) {
             setErro('Preencha todos os campos para continuar.')
-            return
-        }
-
-        if (senha !== confirmarSenha) {
-            setErro('As senhas informadas não conferem.')
-            return
-        }
-
-        if (senha.length < 6) {
-            setErro('A senha deve ter pelo menos 6 caracteres.')
             return
         }
 
@@ -77,6 +68,7 @@ export default function Cadastro() {
             return
         }
 
+        cadastroEmAndamento.current = true
         setLoading(true)
         try {
             const usuario = await criarUsuario({
@@ -99,6 +91,7 @@ export default function Cadastro() {
                 setErro('Não foi possível concluir o cadastro. Tente novamente.')
             }
         } finally {
+            cadastroEmAndamento.current = false
             setLoading(false)
         }
     }
@@ -108,7 +101,7 @@ export default function Cadastro() {
             <img src={"/bye.png"} className="w-60 h-10 object-contain mx-auto flex items-center justify-center mb-6"/>
             <SmartphoneHeader title="Seja bem-vindo" backToUrl="tela-login"/>
             <div className="text-center text-sm text-gray-500 font-normal leading-relaxed max-w-xs mx-auto -mt-3">
-                Crie sua conta aqui no ByeBank!
+                Crie um usuário neste ambiente. O painel abrirá com uma sessão local neste navegador.
             </div>
             <Card>
                 <Input
@@ -142,22 +135,6 @@ export default function Cadastro() {
                     type="tel"
                     value={telefone}
                     onChange={(e) => setTelefone(formatarTelefone(e.target.value))} // MÁSCARA AQUI
-                />
-                <Input
-                    label="Senha"
-                    placeholder="••••••••"
-                    icon={<Lock className="w-5 h-5" />}
-                    type="password"
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
-                />
-                <Input
-                    label="Confirmar senha"
-                    placeholder="••••••••"
-                    icon={<Lock className="w-5 h-5" />}
-                    type="password"
-                    value={confirmarSenha}
-                    onChange={(e) => setConfirmarSenha(e.target.value)}
                 />
 
                 {erro && (
