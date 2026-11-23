@@ -1,308 +1,252 @@
-"use client";
+"use client"
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Mail, CreditCard, ChevronDown, AlertCircle, User, Phone } from 'lucide-react'
+import Tela from '../../../components/Tela'
+import SmartphoneHeader from '../../../components/SmartphoneHeader'
+import Card from '../../../components/Card'
+import Input from '../../../components/Input'
+import BotaoGrande from '../../../components/BotaoGrande'
+import { buscarConta, ApiError } from '../../../lib/api'
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import SmartphoneHeader from "@/src/components/SmartphoneHeader";
-import Tela from "@/src/components/Tela";
-import { criarConta } from "@/src/lib/api";
-import { obterUsuarioLogado } from "@/src/lib/session";
+type TipoChave = 'CPF' | 'CNPJ' | 'EMAIL' | 'TELEFONE'
 
-type TipoConta = "corrente" | "poupanca";
+type ContaOpcao = { id: string; rotulo: string }
 
-export default function CriarContaBancaria() {
-  const router = useRouter();
-  const [tipoConta, setTipoConta] = useState<TipoConta>("corrente");
-  const [agencia, setAgencia] = useState<string>("");
-  const [conta, setConta] = useState<string>("");
-  const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+const TIPOS: { valor: TipoChave; rotulo: string }[] = [
+    { valor: 'CPF', rotulo: 'CPF' },
+    { valor: 'CNPJ', rotulo: 'CNPJ' },
+    { valor: 'EMAIL', rotulo: 'E-mail' },
+    { valor: 'TELEFONE', rotulo: 'Telefone' },
+]
 
-  const handleAgenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const valor = e.target.value.replace(/\D/g, "");
-    setAgencia(valor);
-  };
+// ---------- Máscaras ----------
+const formatarCPF = (valor: string) =>
+    valor
+        .replace(/\D/g, '')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+        .replace(/(-\d{2})\d+?$/, '$1')
 
-  const handleContaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Permite dígitos e o hífen
-    const valor = e.target.value.replace(/[^0-9-]/g, "");
-    setConta(valor);
-  };
+const formatarCNPJ = (valor: string) =>
+    valor
+        .replace(/\D/g, '')
+        .slice(0, 14)
+        .replace(/^(\d{2})(\d)/, '$1.$2')
+        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/\.(\d{3})(\d)/, '.$1/$2')
+        .replace(/(\d{4})(\d)/, '$1-$2')
 
-  const handleSubmit = async () => {
-    setErro(null);
-    const usuarioId = obterUsuarioLogado();
-
-    if (!usuarioId) {
-      setErro("Usuário não encontrado. Faça login novamente.");
-      return;
-    }
-
-    // O backend exige apenas números para agência e conta.
-    const numeroLimpo = conta.replace(/\D/g, "");
-    const agenciaLimpa = agencia.replace(/\D/g, "");
-
-    if (!agenciaLimpa || !numeroLimpo) {
-      setErro("Preencha a agência e a conta corretamente.");
-      return;
-    }
-
-    setCarregando(true);
-    try {
-      await criarConta({
-        usuarioId,
-        agencia: agenciaLimpa,
-        numero: numeroLimpo,
-        tipoConta: tipoConta === "corrente" ? "CORRENTE" : "POUPANCA",
-      });
-
-      // Se der certo, redireciona para o perfil
-      router.push("/login/tela-perfil");
-    } catch (error) {
-      const mensagem =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível criar a conta. Tente novamente.";
-      setErro(mensagem);
-    } finally {
-      setCarregando(false);
-    }
-  };
-
-  return (
-    <Tela>
-      <div style={styles.container}>
-        <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/login/tela-perfil" />
-
-        <section style={styles.introducao}>
-          <h2 style={styles.tituloSecao}>Nova Conta Bancária</h2>
-          <p style={styles.subtitulo}>
-            Adicione os detalhes da sua conta corrente ou poupança para
-            integrar seu saldo à plataforma ByeBank.
-          </p>
-        </section>
-
-        <section style={styles.campo}>
-          <label style={styles.rotulo}>Tipo de conta</label>
-          <div style={styles.grupoTipoConta}>
-            <button
-              type="button"
-              onClick={() => setTipoConta("corrente")}
-              style={{
-                ...styles.botaoTipo,
-                ...(tipoConta === "corrente" ? styles.botaoTipoAtivo : {}),
-              }}
-            >
-              <span
-                style={{
-                  ...styles.radioIcone,
-                  ...(tipoConta === "corrente" ? styles.radioIconeAtivo : {}),
-                }}
-              />
-              <span
-                style={{
-                  ...styles.textoBotaoTipo,
-                  ...(tipoConta === "corrente" ? styles.textoBotaoTipoAtivo : {}),
-                }}
-              >
-                Corrente
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTipoConta("poupanca")}
-              style={{
-                ...styles.botaoTipo,
-                ...(tipoConta === "poupanca" ? styles.botaoTipoAtivo : {}),
-              }}
-            >
-              <span
-                style={{
-                  ...styles.radioIcone,
-                  ...(tipoConta === "poupanca" ? styles.radioIconeAtivo : {}),
-                }}
-              />
-              <span
-                style={{
-                  ...styles.textoBotaoTipo,
-                  ...(tipoConta === "poupanca" ? styles.textoBotaoTipoAtivo : {}),
-                }}
-              >
-                Poupança
-              </span>
-            </button>
-          </div>
-        </section>
-
-        <section style={styles.campo}>
-          <label style={styles.rotulo} htmlFor="agencia">
-            Agência
-          </label>
-          <div style={styles.inputWrapper}>
-            <span style={styles.inputIcone}>🏦</span>
-            <input
-              id="agencia"
-              type="text"
-              inputMode="numeric"
-              placeholder="Ex: 0001"
-              value={agencia}
-              onChange={handleAgenciaChange}
-              style={styles.input}
-              maxLength={4}
-            />
-          </div>
-        </section>
-
-        <section style={styles.campo}>
-          <label style={styles.rotulo} htmlFor="conta">
-            Conta
-          </label>
-          <div style={styles.inputWrapper}>
-            <span style={styles.inputIcone}>💳</span>
-            <input
-              id="conta"
-              type="text"
-              inputMode="numeric"
-              placeholder="Ex: 12345-6"
-              value={conta}
-              onChange={handleContaChange}
-              style={styles.input}
-              maxLength={8}
-            />
-          </div>
-        </section>
-
-        {erro && (
-          <div style={{ color: "red", fontSize: 14, marginBottom: 16, textAlign: "center" }}>
-            {erro}
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!agencia || !conta || carregando}
-          style={{
-            ...styles.botaoCriar,
-            ...(!agencia || !conta || carregando ? styles.botaoCriarDesabilitado : {}),
-          }}
-        >
-          {carregando ? "Criando..." : "Criar conta"}
-        </button>
-      </div>
-    </Tela>
-  );
+const formatarTelefone = (valor: string) => {
+    let v = valor.replace(/\D/g, '').slice(0, 11)
+    v = v.replace(/^(\d{2})(\d)/g, '($1) $2')
+    v = v.replace(/(\d)(\d{4})$/, '$1-$2')
+    return v
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    width: "100%",
-    boxSizing: "border-box",
-  },
-  introducao: {
-    marginBottom: 28,
-  },
-  tituloSecao: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: "#1A1A2E",
-    margin: "0 0 8px 0",
-  },
-  subtitulo: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  campo: {
-    marginBottom: 20,
-  },
-  rotulo: {
-    display: "block",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#374151",
-    marginBottom: 8,
-  },
-  grupoTipoConta: {
-    display: "flex",
-    gap: 12,
-  },
-  botaoTipo: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "14px 16px",
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderStyle: "solid",
-    borderColor: "#E5E7EB",
-    backgroundColor: "#FFFFFF",
-    cursor: "pointer",
-    transition: "border-color 0.15s ease, background-color 0.15s ease",
-  },
-  botaoTipoAtivo: {
-    borderColor: "#4F46E5",
-    backgroundColor: "#FFFFFF",
-  },
-  radioIcone: {
-    width: 18,
-    height: 18,
-    borderRadius: "50%",
-    border: "2px solid #D1D5DB",
-    display: "inline-block",
-    flexShrink: 0,
-    boxSizing: "border-box",
-  },
-  radioIconeAtivo: {
-    border: "5px solid #4F46E5",
-  },
-  textoBotaoTipo: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "#1A1A2E",
-  },
-  textoBotaoTipoAtivo: {
-    color: "#4F46E5",
-    fontWeight: 600,
-  },
-  inputWrapper: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "14px 16px",
-    borderRadius: 12,
-    border: "1.5px solid #E5E7EB",
-    backgroundColor: "#FFFFFF",
-  },
-  inputIcone: {
-    fontSize: 16,
-    flexShrink: 0,
-  },
-  input: {
-    border: "none",
-    outline: "none",
-    fontSize: 14,
-    color: "#1A1A2E",
-    width: "100%",
-    backgroundColor: "transparent",
-  },
-  botaoCriar: {
-    width: "100%",
-    padding: "16px",
-    borderRadius: 14,
-    border: "none",
-    backgroundColor: "#4F46E5",
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: "pointer",
-    marginTop: 8,
-    transition: "opacity 0.15s ease",
-  },
-  botaoCriarDesabilitado: {
-    opacity: 0.5,
-    cursor: "not-allowed",
-  },
-};
+const aplicarMascara = (tipo: TipoChave, valor: string) => {
+    if (tipo === 'CPF') return formatarCPF(valor)
+    if (tipo === 'CNPJ') return formatarCNPJ(valor)
+    if (tipo === 'TELEFONE') return formatarTelefone(valor)
+    return valor.trim()
+}
+
+const PLACEHOLDERS: Record<TipoChave, string> = {
+    CPF: '000.000.000-00',
+    CNPJ: '00.000.000/0000-00',
+    EMAIL: 'Digite sua chave PIX',
+    TELEFONE: '(00) 90000-0000',
+}
+
+const validarChave = (tipo: TipoChave, chave: string): string | null => {
+    const numeros = chave.replace(/\D/g, '')
+    if (!chave.trim()) return 'Informe a chave PIX.'
+    if (tipo === 'CPF' && numeros.length !== 11) return 'O CPF deve ter 11 dígitos.'
+    if (tipo === 'CNPJ' && numeros.length !== 14) return 'O CNPJ deve ter 14 dígitos.'
+    if (tipo === 'TELEFONE' && numeros.length < 10) return 'O telefone deve ter DDD + número.'
+    if (tipo === 'EMAIL' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(chave)) return 'Informe um e-mail válido.'
+    return null
+}
+
+export default function CadastrarChavePix() {
+    return (
+        <Suspense fallback={<Tela><p role="status">Carregando...</p></Tela>}>
+            <ContaDaUrl />
+        </Suspense>
+    )
+}
+
+function ContaDaUrl() {
+    const searchParams = useSearchParams()
+    const contaId = searchParams.get('contaId')
+    return <PassoValidacao key={contaId} contaIdInicial={contaId} />
+}
+
+function PassoValidacao({ contaIdInicial }: { contaIdInicial: string | null }) {
+    const router = useRouter()
+
+    const [tipo, setTipo] = useState<TipoChave>('EMAIL')
+    const [chave, setChave] = useState('')
+    const [contas, setContas] = useState<ContaOpcao[]>([])
+    const [contaId, setContaId] = useState(contaIdInicial ?? '')
+
+    const [carregando, setCarregando] = useState(Boolean(contaIdInicial))
+    const [loading, setLoading] = useState(false)
+    const [erro, setErro] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (!contaIdInicial) return
+        let ativo = true
+
+        // TODO: se existir uma função que lista todas as contas do usuário logado
+        // (ex.: listarContas(obterUsuarioLogado())), use-a aqui no lugar de buscarConta.
+        buscarConta(contaIdInicial)
+            .then((conta) => {
+                if (!ativo) return
+                const nome = conta.tipoConta === 'CORRENTE' ? 'Conta Corrente' : 'Conta Poupança'
+                setContas([{ id: contaIdInicial, rotulo: `${nome} ****${conta.numero.replace(/\D/g, '').slice(-4)}` }])
+                setContaId(contaIdInicial)
+            })
+            .catch((e) => {
+                if (ativo) setErro(e instanceof Error ? e.message : 'Não foi possível carregar a conta.')
+            })
+            .finally(() => { if (ativo) setCarregando(false) })
+
+        return () => { ativo = false }
+    }, [contaIdInicial])
+
+    const trocarTipo = (novo: TipoChave) => {
+        setTipo(novo)
+        setChave('') // a máscara muda, então limpa o campo
+        setErro(null)
+    }
+
+    const iconeChave =
+        tipo === 'EMAIL' ? <Mail className="w-5 h-5 stroke-[1.8]" />
+        : tipo === 'TELEFONE' ? <Phone className="w-5 h-5 stroke-[1.8]" />
+        : <User className="w-5 h-5 stroke-[1.8]" />
+
+    const handleValidar = async () => {
+        setErro(null)
+
+        const problema = validarChave(tipo, chave)
+        if (problema) {
+            setErro(problema)
+            return
+        }
+        if (!contaId) {
+            setErro('Selecione a conta para recebimento.')
+            return
+        }
+
+        // O backend recebe CPF, CNPJ e telefone só com números
+        const chaveLimpa = tipo === 'EMAIL' ? chave.trim() : chave.replace(/\D/g, '')
+
+        setLoading(true)
+        try {
+            // TODO: chamar aqui a validação da chave na sua API, por exemplo:
+            // await validarChavePix({ contaId, tipo, chave: chaveLimpa })
+            const params = new URLSearchParams({ contaId, tipo, chave: chaveLimpa })
+            router.push(`/login/tela-confirmar-chave-pix?${params.toString()}`)
+        } catch (e) {
+            if (e instanceof ApiError || e instanceof Error) {
+                setErro(e.message)
+            } else {
+                setErro('Não foi possível validar a chave. Tente novamente.')
+            }
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Tela>
+            <SmartphoneHeader title="Cadastrar chave PIX" backToUrl="/pix/minhas-chaves-pix" />
+
+            <Card paddingClass="p-5" bgClass="bg-white">
+                <div className="flex flex-col gap-6">
+                    {/* Tipo de chave */}
+                    <div className="flex flex-col gap-3">
+                        <span className="text-sm font-semibold text-slate-700">Tipo de chave</span>
+                        <div className="grid grid-cols-2 gap-3">
+                            {TIPOS.map((opcao) => {
+                                const selecionado = tipo === opcao.valor
+                                return (
+                                    <button
+                                        key={opcao.valor}
+                                        type="button"
+                                        onClick={() => trocarTipo(opcao.valor)}
+                                        className={`flex items-center gap-3 px-4 h-14 rounded-xl border-2 text-base font-medium cursor-pointer transition-colors ${
+                                            selecionado
+                                                ? 'border-[#4F46E5] bg-white text-[#4F46E5]'
+                                                : 'border-gray-200 bg-white text-slate-800 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                                selecionado ? 'border-[#4F46E5]' : 'border-gray-400'
+                                            }`}
+                                        >
+                                            {selecionado && <span className="w-2.5 h-2.5 rounded-full bg-[#4F46E5]" />}
+                                        </span>
+                                        {opcao.rotulo}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Chave */}
+                    <Input
+                        label="Chave"
+                        placeholder={PLACEHOLDERS[tipo]}
+                        icon={iconeChave}
+                        type={tipo === 'EMAIL' ? 'email' : tipo === 'TELEFONE' ? 'tel' : 'text'}
+                        value={chave}
+                        onChange={(e) => setChave(aplicarMascara(tipo, e.target.value))}
+                    />
+
+                    {/* Conta para recebimento */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-semibold text-slate-700">Conta para recebimento</label>
+                        <div className="relative">
+                            <CreditCard className="w-5 h-5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <select
+                                value={contaId}
+                                onChange={(e) => setContaId(e.target.value)}
+                                disabled={carregando || contas.length === 0}
+                                className="w-full h-12 pl-12 pr-10 rounded-xl border border-gray-200 bg-white text-slate-800 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#4F46E5] disabled:opacity-60"
+                            >
+                                {contas.length === 0 && (
+                                    <option value="">{carregando ? 'Carregando...' : 'Nenhuma conta disponível'}</option>
+                                )}
+                                {contas.map((c) => (
+                                    <option key={c.id} value={c.id}>{c.rotulo}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="w-5 h-5 text-slate-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                    </div>
+
+                    {erro && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-sm text-red-700">
+                            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5 stroke-[2]" />
+                            <p className="text-xs text-red-600 leading-relaxed">{erro}</p>
+                        </div>
+                    )}
+
+                    <BotaoGrande
+                        text="Validar chave"
+                        bgClass="bg-[#4F46E5] hover:bg-[#4338CA]"
+                        textClass="text-white font-semibold"
+                        widthClass="w-full"
+                        isLoading={loading}
+                        disabled={carregando || loading || !chave || !contaId}
+                        onClick={handleValidar}
+                    />
+                </div>
+            </Card>
+        </Tela>
+    )
+}

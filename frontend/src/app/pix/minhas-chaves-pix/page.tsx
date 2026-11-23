@@ -149,7 +149,7 @@ export default function MinhasChavesPix() {
                 textClass="text-[#4F46E5] font-semibold"
                 widthClass="w-full"
                 icon={<RotateCw className="w-4 h-4 stroke-[2.2]" />}
-                onClick={() => console.log("Ação de gerar chave aleatória")}
+                onClick={() => router.push('pix/adicionar-chave')}
             />
           
         </div>
