@@ -152,7 +152,7 @@ export default function MinhasContasBancarias() {
           />
 
           <BotaoGrande
-            text="Gerar Relatório de Transações do Usuário"
+            text="Relatório de transações PIX"
             bgClass="bg-transparent hover:bg-slate-50/50"
             borderClass="border-2 border-dashed border-[#4F46E5]/50"
             textClass="text-[#4F46E5] font-semibold text-sm text-center"
@@ -161,7 +161,7 @@ export default function MinhasContasBancarias() {
           />
 
           <BotaoGrande
-            text="Consultar histórico de Logins"
+            text="Histórico de logins"
             bgClass="bg-transparent hover:bg-slate-50/50"
             borderClass="border-2 border-dashed border-[#4F46E5]/50"
             textClass="text-[#4F46E5] font-semibold text-sm text-center"
