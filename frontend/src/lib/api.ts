@@ -52,6 +52,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(`Erro inesperado ao chamar ${path} (status ${response.status}).`);
   }
 
+  if (dados === null) {
+    throw new Error("O servidor devolveu uma resposta inválida.");
+  }
+
   return dados as T;
 }
 
@@ -94,7 +98,7 @@ export function criarUsuario(dados: CriarUsuarioRequest) {
 }
 
 export function buscarUsuario(id: string) {
-  return request<UsuarioResponse>(`/api/usuarios/${id}`);
+  return request<UsuarioResponse>(`/api/usuarios/${id}`, { cache: "no-store" });
 }
 
 export function atualizarUsuario(id: string, dados: AtualizarUsuarioRequest) {
@@ -149,11 +153,11 @@ export function criarConta(dados: CriarContaBancariaRequest): Promise<Conta> {
 }
 
 export function buscarConta(id: string): Promise<Conta> {
-  return request<Conta>(`/api/contas/${id}`);
+  return request<Conta>(`/api/contas/${id}`, { cache: "no-store" });
 }
 
 export function listarContasDoUsuario(usuarioId: string): Promise<Conta[]> {
-  return request<Conta[]>(`/api/usuarios/${usuarioId}/contas`);
+  return request<Conta[]>(`/api/usuarios/${usuarioId}/contas`, { cache: "no-store" });
 }
 
 export function atualizarConta(id: string, dados: AtualizarContaBancariaRequest) {
@@ -179,4 +183,49 @@ export function definirNotificacao(id: string, canal: "EMAIL" | "SMS" | null): P
     method: "PATCH",
     body: JSON.stringify({ canal }),
   });
+}
+
+export interface ChavePixResolvida {
+  chaveId: string;
+  tipo: "CPF" | "CNPJ" | "EMAIL" | "TELEFONE" | "ALEATORIA";
+  valor: string;
+  contaId: string;
+  nomeTitular: string;
+}
+
+export interface TransferirPixRequest {
+  contaOrigemId: string;
+  chaveDestino: string;
+  valor: number;
+}
+
+export interface TransferenciaPix {
+  id: string;
+  contaOrigemId: string | null;
+  contaDestinoId: string;
+  chaveDestinoUtilizada: string;
+  valor: number;
+  recebimentoExterno: boolean;
+  origemExterna: string | null;
+  realizadaEm: string;
+}
+
+export function resolverChavePix(valor: string) {
+  const consulta = new URLSearchParams({ valor });
+  return request<ChavePixResolvida>(`/api/chaves-pix/resolver?${consulta}`, { cache: "no-store" });
+}
+
+export function transferirPix(dados: TransferirPixRequest) {
+  return request<TransferenciaPix>("/api/pix/transferencias", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function buscarTransferenciaPix(id: string) {
+  return request<TransferenciaPix>(`/api/pix/transferencias/${encodeURIComponent(id)}`, { cache: "no-store" });
+}
+
+export function listarExtratoPix(contaId: string) {
+  return request<TransferenciaPix[]>(`/api/contas/${contaId}/extrato-pix`, { cache: "no-store" });
 }
