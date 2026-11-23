@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, KeyRound, Mail, Phone, Plus, RotateCw, User, type LucideIcon } from "lucide-react";
 import Tela from "../../../components/Tela";
 import SmartphoneHeader from "../../../components/SmartphoneHeader";
 import Card from "../../../components/Card";
 import BotaoGrande from "../../../components/BotaoGrande";
-import { listarChavesPixDaConta, type ChavePixResponse, type Conta, type TipoChavePix } from "../../../lib/api";
+import { ApiError, gerarChavePixAleatoria, listarChavesPixDaConta, type ChavePixResponse, type Conta, type TipoChavePix } from "../../../lib/api";
 import { rotuloConta } from "../../../lib/pix";
-import { obterSessaoLocal } from "../../../lib/session";
+import { obterSessaoLocal, type SessaoLocal } from "../../../lib/session";
 import { useDadosDaSessao, type DadosDaSessao } from "../../../lib/use-dados-da-sessao";
 
 const TIPOS_CHAVE: Record<TipoChavePix, { rotulo: string; Icone: LucideIcon }> = {
@@ -26,10 +26,19 @@ interface ResultadoChaves {
   erro: string | null;
 }
 
+type GeracaoChave = { sessao: SessaoLocal } & (
+  | { estado: "enviando" }
+  | { estado: "confirmada" | "falhou" | "incerta"; mensagem: string }
+);
+
 export default function MinhasChavesPix() {
   const router = useRouter();
   const { sessao, dados, erro: erroSessao, recarregar } = useDadosDaSessao();
   const [resultado, setResultado] = useState<ResultadoChaves | null>(null);
+  const [selecao, setSelecao] = useState<{ sessao: SessaoLocal; contaId: string } | null>(null);
+  const [geracao, setGeracao] = useState<GeracaoChave | null>(null);
+  const geracoesPendentes = useRef(new Set<string>());
+  const contas = useMemo(() => dados?.contas.filter((conta) => conta.usuarioId === dados.usuario.id) ?? [], [dados]);
 
   useEffect(() => {
     if (!dados || obterSessaoLocal() !== sessao) return;
@@ -38,7 +47,6 @@ export default function MinhasChavesPix() {
 
     async function carregar(dadosDaSessao: DadosDaSessao) {
       try {
-        const contas = dadosDaSessao.contas.filter((conta) => conta.usuarioId === dadosDaSessao.usuario.id);
         const chavesPorConta = await Promise.all(contas.map(async (conta) => {
           const chaves = await listarChavesPixDaConta(conta.id);
           return chaves
@@ -56,10 +64,47 @@ export default function MinhasChavesPix() {
 
     void carregar(dados);
     return () => { ativo = false; };
-  }, [dados, sessao]);
+  }, [contas, dados, sessao]);
 
   const atual = resultado?.dadosDaSessao === dados ? resultado : null;
   const erro = erroSessao ?? atual?.erro;
+  const geracaoAtual = geracao?.sessao === sessao ? geracao : null;
+  const enviando = geracaoAtual?.estado === "enviando";
+  const contaSelecionada = contas.length === 1 ? contas[0]
+    : contas.find((conta) => selecao?.sessao === sessao && selecao.contaId === conta.id);
+
+  async function gerarChave() {
+    const usuarioId = sessao.usuarioId;
+    if (!usuarioId || !contaSelecionada || !atual || erro || enviando || geracoesPendentes.current.has(usuarioId)
+      || obterSessaoLocal() !== sessao) return;
+
+    geracoesPendentes.current.add(usuarioId);
+    setGeracao({ sessao, estado: "enviando" });
+    try {
+      const chave = await gerarChavePixAleatoria(contaSelecionada.id);
+      if (obterSessaoLocal() !== sessao) return;
+      if (chave?.contaId !== contaSelecionada.id || chave.tipo !== "ALEATORIA") {
+        throw new Error("Resposta inválida ao cadastrar a chave PIX.");
+      }
+
+      setGeracao({ sessao, estado: "confirmada", mensagem: "Chave PIX aleatória cadastrada com sucesso." });
+      recarregar();
+    } catch (error) {
+      if (obterSessaoLocal() !== sessao) return;
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+        setGeracao({ sessao, estado: "falhou", mensagem: Object.values(error.campos)[0] ?? error.message });
+      } else {
+        setGeracao({
+          sessao,
+          estado: "incerta",
+          mensagem: "Não foi possível confirmar o cadastro. Confira a lista de chaves antes de tentar novamente.",
+        });
+        recarregar();
+      }
+    } finally {
+      geracoesPendentes.current.delete(usuarioId);
+    }
+  }
 
   return (
     <Tela>
@@ -80,7 +125,10 @@ export default function MinhasChavesPix() {
         )}
         {erro && (
           <div className="flex flex-col gap-2">
-            <p role="alert" className="text-sm text-red-600">{erro}</p>
+            <p role="alert" className="text-sm text-red-600">
+              {geracaoAtual?.estado === "confirmada" && "Não foi possível atualizar a lista de chaves. "}
+              {erro}
+            </p>
             <button type="button" className="text-sm font-semibold text-indigo-700" onClick={recarregar}>
               Tentar novamente
             </button>
@@ -125,6 +173,25 @@ export default function MinhasChavesPix() {
             icon={<Plus className="w-4 h-4 stroke-[2.5]" />}
             onClick={() => router.push("/pix/adicionar-chave")}
           />
+          {contas.length > 1 && (
+            <label className="mt-2 flex flex-col gap-2 text-sm font-semibold text-slate-700">
+              Conta para a chave aleatória
+              <select
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800"
+                value={contaSelecionada?.id ?? ""}
+                disabled={enviando || !atual || Boolean(erro)}
+                onChange={(event) => {
+                  setSelecao({ sessao, contaId: event.target.value });
+                  if (geracaoAtual?.estado === "falhou") setGeracao(null);
+                }}
+              >
+                <option value="">Selecione uma conta</option>
+                {contas.map((conta) => <option key={conta.id} value={conta.id}>{rotuloConta(conta)}</option>)}
+              </select>
+            </label>
+          )}
+          {contas.length === 1 && <p className="mt-2 text-sm text-slate-700">Conta para a chave aleatória: {rotuloConta(contas[0])}</p>}
+          {dados && contas.length === 0 && <p className="mt-2 text-sm text-slate-700">Crie uma conta bancária para gerar uma chave PIX.</p>}
           <BotaoGrande
             text="Gerar chave aleatória"
             bgClass="bg-white hover:bg-slate-50/50"
@@ -132,8 +199,15 @@ export default function MinhasChavesPix() {
             textClass="text-[#4F46E5] font-semibold"
             widthClass="w-full"
             icon={<RotateCw className="w-4 h-4 stroke-[2.2]" />}
-            onClick={() => console.log("Ação de gerar chave aleatória")}
+            isLoading={enviando}
+            disabled={!contaSelecionada || !atual || Boolean(erro)}
+            onClick={gerarChave}
           />
+          {geracaoAtual && geracaoAtual.estado !== "enviando" && (
+            <p role={geracaoAtual.estado === "confirmada" ? "status" : "alert"} className={
+              geracaoAtual.estado === "confirmada" ? "text-sm text-emerald-700" : "text-sm text-red-600"
+            }>{geracaoAtual.mensagem}</p>
+          )}
         </div>
       </div>
     </Tela>
