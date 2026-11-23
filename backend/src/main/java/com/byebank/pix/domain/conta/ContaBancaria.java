@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /** Conta de titularidade única nesta etapa do projeto. */
 public final class ContaBancaria {
@@ -53,12 +54,12 @@ public final class ContaBancaria {
         this.atualizadaEm = Instant.now();
     }
 
-    public void definirNotificacao(CanalNotificacao canal) {
+    public synchronized void definirNotificacao(CanalNotificacao canal) {
         this.notificacao = canal;
         this.atualizadaEm = Instant.now();
     }
 
-    public void bloquear() {
+    public synchronized void bloquear() {
         if (status == StatusConta.BLOQUEADA) {
             throw new IllegalStateException("A conta já está bloqueada.");
         }
@@ -66,7 +67,7 @@ public final class ContaBancaria {
         atualizadaEm = Instant.now();
     }
 
-    public void desbloquear() {
+    public synchronized void desbloquear() {
         if (status == StatusConta.ATIVA) {
             throw new IllegalStateException("A conta já está ativa.");
         }
@@ -74,13 +75,13 @@ public final class ContaBancaria {
         atualizadaEm = Instant.now();
     }
 
-    public void atualizarAgencia(String agencia) {
+    public synchronized void atualizarAgencia(String agencia) {
         this.agencia = validarAgencia(agencia);
         this.atualizadaEm = Instant.now();
     }
 
     /** Preparado para o recebimento PIX, que será exposto no módulo de transferências. */
-    public void creditar(Dinheiro valor) {
+    public synchronized void creditar(Dinheiro valor) {
         garantirContaAtiva();
         validarValorPositivo(valor);
         saldo = saldo.somar(valor);
@@ -88,7 +89,7 @@ public final class ContaBancaria {
     }
 
     /** Preparado para o envio PIX; evita que a conta fique com saldo negativo. */
-    public void debitar(Dinheiro valor) {
+    public synchronized void debitar(Dinheiro valor) {
         garantirContaAtiva();
         validarValorPositivo(valor);
         if (!saldo.ehMaiorOuIgualA(valor)) {
@@ -98,13 +99,26 @@ public final class ContaBancaria {
         atualizadaEm = Instant.now();
     }
 
-    public boolean temSaldoSuficiente(Dinheiro valor) {
+    public synchronized boolean temSaldoSuficiente(Dinheiro valor) {
         return saldo.ehMaiorOuIgualA(valor);
     }
 
-    private void garantirContaAtiva() {
+    public synchronized void garantirContaAtiva() {
         if (status == StatusConta.BLOQUEADA) {
             throw new IllegalStateException("Conta bloqueada: não é possível realizar a operação.");
+        }
+    }
+
+    /** Mantém o bloqueio da conta e restaura seu estado financeiro se a operação falhar. */
+    public synchronized <T> T executarComRollbackFinanceiro(Supplier<T> operacao) {
+        Dinheiro saldoAnterior = saldo;
+        Instant atualizacaoAnterior = atualizadaEm;
+        try {
+            return operacao.get();
+        } catch (RuntimeException | Error falha) {
+            saldo = saldoAnterior;
+            atualizadaEm = atualizacaoAnterior;
+            throw falha;
         }
     }
 
@@ -153,7 +167,7 @@ public final class ContaBancaria {
         return numero;
     }
 
-    public Dinheiro getSaldo() {
+    public synchronized Dinheiro getSaldo() {
         return saldo;
     }
 
@@ -161,7 +175,7 @@ public final class ContaBancaria {
         return tipoConta;
     }
 
-    public Dinheiro getLimiteDiario() {
+    public synchronized Dinheiro getLimiteDiario() {
         return limiteDiario;
     }
 
@@ -169,7 +183,7 @@ public final class ContaBancaria {
         return notificacao;
     }
 
-    public StatusConta getStatus() {
+    public synchronized StatusConta getStatus() {
         return status;
     }
 
@@ -177,7 +191,7 @@ public final class ContaBancaria {
         return criadaEm;
     }
 
-    public Instant getAtualizadaEm() {
+    public synchronized Instant getAtualizadaEm() {
         return atualizadaEm;
     }
 }

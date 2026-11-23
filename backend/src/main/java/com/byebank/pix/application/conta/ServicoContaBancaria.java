@@ -115,13 +115,16 @@ public class ServicoContaBancaria {
      */
     public void remover(UUID id) {
         ContaBancaria conta = buscarPorId(id);
-        for (TransferenciaPix transferencia : repositorioTransferencia.listarPorConta(conta.getId())) {
-            repositorioTransferencia.remover(transferencia);
+        synchronized (conta) {
+            buscarPorId(id);
+            for (TransferenciaPix transferencia : repositorioTransferencia.listarPorConta(conta.getId())) {
+                repositorioTransferencia.remover(transferencia);
+            }
+            for (ChavePix chave : repositorioChave.listarPorContaId(conta.getId())) {
+                repositorioChave.remover(chave);
+            }
+            repositorioConta.remover(conta);
         }
-        for (ChavePix chave : repositorioChave.listarPorContaId(conta.getId())) {
-            repositorioChave.remover(chave);
-        }
-        repositorioConta.remover(conta);
     }
 
     private void garantirUsuarioExiste(UUID usuarioId) {
