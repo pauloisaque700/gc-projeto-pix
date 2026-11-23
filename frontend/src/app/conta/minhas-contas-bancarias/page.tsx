@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Tela from "../../../components/Tela"
 import SmartphoneHeader from "../../../components/SmartphoneHeader"
 import Card from "../../../components/Card"
 import BotaoGrande from "../../../components/BotaoGrande"
-import { Plus, AlertCircle, Trash2 } from "lucide-react"
+import { Plus, AlertCircle, LoaderCircle, Trash2 } from "lucide-react"
 import { removerConta } from "../../../lib/api"
 import { obterSessaoLocal, type SessaoLocal } from "../../../lib/session"
 import { useDadosDaSessao } from "../../../lib/use-dados-da-sessao"
@@ -14,13 +14,18 @@ import { useDadosDaSessao } from "../../../lib/use-dados-da-sessao"
 export default function MinhasContasBancarias() {
   const router = useRouter()
   const { sessao, dados, erro: erroSessao, recarregar } = useDadosDaSessao()
+  const remocoesPendentes = useRef(new Set<string>())
   const [remocao, setRemocao] = useState<{ sessao: SessaoLocal; contaId: string | null; erro: string | null } | null>(null)
   const remocaoAtual = remocao?.sessao === sessao ? remocao : null
   const removendoId = remocaoAtual?.contaId ?? null
   const erro = erroSessao ?? remocaoAtual?.erro
 
   const handleRemoverConta = async (id: string) => {
-    if (!dados?.contas.some((conta) => conta.id === id) || removendoId || obterSessaoLocal() !== sessao) return
+    const usuarioId = sessao.usuarioId
+    if (!usuarioId || removendoId || remocoesPendentes.current.has(usuarioId)
+      || !dados?.contas.some((conta) => conta.id === id) || obterSessaoLocal() !== sessao) return
+
+    remocoesPendentes.current.add(usuarioId)
     setRemocao({ sessao, contaId: id, erro: null })
     try {
       await removerConta(id)
@@ -33,6 +38,8 @@ export default function MinhasContasBancarias() {
         const mensagem = error instanceof Error ? error.message : "Não foi possível remover a conta selecionada."
         setRemocao({ sessao, contaId: null, erro: mensagem })
       }
+    } finally {
+      remocoesPendentes.current.delete(usuarioId)
     }
   }
 
@@ -132,11 +139,14 @@ export default function MinhasContasBancarias() {
                         type="button"
                         onClick={() => handleRemoverConta(conta.id)}
                         disabled={removendoId !== null}
+                        aria-busy={removendoId === conta.id}
                         aria-label="Remover conta"
                         className="p-2 text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
                         title="Remover conta"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {removendoId === conta.id
+                          ? <LoaderCircle className="w-4 h-4 animate-spin" aria-hidden="true" />
+                          : <Trash2 className="w-4 h-4" aria-hidden="true" />}
                       </button>
                     </div>
                   </div>
