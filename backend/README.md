@@ -91,7 +91,9 @@ Cada conta inicia com saldo `0.00`. A remoção de contas e de usuários é feit
 
 ### Política no esquema MySQL
 
-O encerramento é lógico. O usuário pode ser marcado como `ENCERRADO` e a conta como `ENCERRADA`, mantendo os registros e vínculos financeiros. Ao encerrar uma conta, o banco suspende suas chaves PIX ativas. O esquema rejeita a ativação de chaves, mudanças de saldo em contas já encerradas e PIX pendentes ou concluídos que iniciem ou mudem para essas contas. As chaves estrangeiras restringem a exclusão física de titulares, contas e transferências que tenham vínculos protegidos. Encerrar a conta ou o usuário preserva as transferências e os estornos existentes.
+O encerramento é lógico. O usuário pode ser marcado como `ENCERRADO` e a conta como `ENCERRADA`, mantendo os registros e vínculos financeiros. Encerrar um usuário preserva as contas e os vínculos de cotitularidade existentes. O esquema impede novos vínculos de titularidade ou cotitularidade com usuários encerrados e novos cotitulares em contas encerradas.
+
+Ao encerrar uma conta, o banco suspende suas chaves PIX ativas. O esquema bloqueia alterações de saldo durante e após o encerramento, impede a reativação da conta e rejeita a ativação de chaves ou novos PIX pendentes e concluídos nessas contas. As chaves estrangeiras restringem a exclusão física de usuários, contas e transferências com vínculos protegidos, preservando o histórico financeiro e os logs de login.
 
 ### Comportamento atual da API em memória
 

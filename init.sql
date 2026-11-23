@@ -179,7 +179,7 @@ CREATE TABLE log_login (
     data_hora DATETIME(6) NOT NULL,
     PRIMARY KEY (id),
     KEY ix_login_usuario_data (usuario_id, data_hora),
-    CONSTRAINT fk_log_usuario FOREIGN KEY (usuario_id) REFERENCES usuario (id) ON DELETE CASCADE,
+    CONSTRAINT fk_log_usuario FOREIGN KEY (usuario_id) REFERENCES usuario (id) ON DELETE RESTRICT,
     CONSTRAINT fk_log_conta FOREIGN KEY (conta_id) REFERENCES conta_bancaria (id) ON DELETE SET NULL,
     CONSTRAINT ck_log_sucesso CHECK (sucesso IN (FALSE, TRUE))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
@@ -199,14 +199,64 @@ BEGIN
     END IF;
 END$$
 
+CREATE PROCEDURE verificar_usuario_ativo(IN id_usuario CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin)
+BEGIN
+    DECLARE status_usuario VARCHAR(20);
+
+    SELECT status INTO status_usuario FROM usuario WHERE id = id_usuario FOR SHARE;
+    IF status_usuario = 'ENCERRADO' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Usuário encerrado não pode receber novos vínculos com contas';
+    END IF;
+END$$
+
+CREATE PROCEDURE verificar_novo_cotitular(
+    IN id_conta CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+    IN id_usuario CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin
+)
+BEGIN
+    DECLARE status_conta VARCHAR(20);
+
+    CALL verificar_usuario_ativo(id_usuario);
+    SELECT status INTO status_conta FROM conta_bancaria WHERE id = id_conta FOR SHARE;
+    IF status_conta = 'ENCERRADA' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Conta encerrada não pode receber novos cotitulares';
+    END IF;
+END$$
+
+CREATE TRIGGER trg_conta_validar_cadastro BEFORE INSERT ON conta_bancaria
+FOR EACH ROW
+BEGIN
+    CALL verificar_usuario_ativo(NEW.usuario_id);
+END$$
+
 CREATE TRIGGER trg_conta_encerrada BEFORE UPDATE ON conta_bancaria
 FOR EACH ROW
 BEGIN
-    IF OLD.status = 'ENCERRADA' AND NEW.saldo <> OLD.saldo THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Não é possível movimentar o saldo de uma conta encerrada';
+    IF OLD.status = 'ENCERRADA' AND NEW.status <> 'ENCERRADA' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Uma conta encerrada não pode mudar de status';
+    END IF;
+    IF (OLD.status = 'ENCERRADA' OR NEW.status = 'ENCERRADA') AND NEW.saldo <> OLD.saldo THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Não é possível alterar o saldo de uma conta encerrada ou em encerramento';
+    END IF;
+    IF NEW.usuario_id <> OLD.usuario_id THEN
+        CALL verificar_usuario_ativo(NEW.usuario_id);
     END IF;
     IF OLD.status <> 'ENCERRADA' AND NEW.status = 'ENCERRADA' THEN
         UPDATE chave_pix SET status = 'SUSPENSA' WHERE conta_id = OLD.id AND status = 'ATIVA';
+    END IF;
+END$$
+
+CREATE TRIGGER trg_cotitular_validar_cadastro BEFORE INSERT ON conta_usuario
+FOR EACH ROW
+BEGIN
+    CALL verificar_novo_cotitular(NEW.conta_id, NEW.usuario_id);
+END$$
+
+CREATE TRIGGER trg_cotitular_validar_atualizacao BEFORE UPDATE ON conta_usuario
+FOR EACH ROW
+BEGIN
+    IF NEW.conta_id <> OLD.conta_id OR NEW.usuario_id <> OLD.usuario_id THEN
+        CALL verificar_novo_cotitular(NEW.conta_id, NEW.usuario_id);
     END IF;
 END$$
 
