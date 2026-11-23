@@ -1,23 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, KeyRound, Mail, Phone, Plus, RotateCw, User, type LucideIcon } from "lucide-react";
+import { ChevronRight, FileText, KeyRound, Mail, Phone, Plus, RotateCw, User, type LucideIcon } from "lucide-react";
 import Tela from "../../../components/Tela";
 import SmartphoneHeader from "../../../components/SmartphoneHeader";
 import Card from "../../../components/Card";
 import BotaoGrande from "../../../components/BotaoGrande";
 import { ApiError, gerarChavePixAleatoria, listarChavesPixDaConta, type ChavePixResponse, type Conta, type TipoChavePix } from "../../../lib/api";
-import { rotuloConta } from "../../../lib/pix";
+import { ROTULOS_TIPO_CHAVE_PIX, rotuloConta } from "../../../lib/pix";
 import { obterSessaoLocal, type SessaoLocal } from "../../../lib/session";
 import { useDadosDaSessao, type DadosDaSessao } from "../../../lib/use-dados-da-sessao";
 
-const TIPOS_CHAVE: Record<TipoChavePix, { rotulo: string; Icone: LucideIcon }> = {
-  CPF: { rotulo: "CPF", Icone: User },
-  CNPJ: { rotulo: "CNPJ", Icone: FileText },
-  EMAIL: { rotulo: "E-mail", Icone: Mail },
-  TELEFONE: { rotulo: "Telefone", Icone: Phone },
-  ALEATORIA: { rotulo: "Chave aleatória", Icone: KeyRound },
+const ICONES_TIPO_CHAVE_PIX: Record<TipoChavePix, LucideIcon> = {
+  CPF: User,
+  CNPJ: FileText,
+  EMAIL: Mail,
+  TELEFONE: Phone,
+  ALEATORIA: KeyRound,
 };
 
 interface ResultadoChaves {
@@ -140,25 +141,31 @@ export default function MinhasChavesPix() {
               <p className="text-sm text-slate-400 text-center py-4">Nenhuma chave cadastrada ainda.</p>
             )}
             {atual.itens.map(({ chave, conta }) => {
-              const { rotulo, Icone } = TIPOS_CHAVE[chave.tipo];
+              const Icone = ICONES_TIPO_CHAVE_PIX[chave.tipo];
               return (
-                <Card
+                <Link
                   key={chave.id}
-                  paddingClass="p-4"
-                  roundedClass="rounded-2xl"
-                  borderClass="border border-slate-100/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)]"
+                  href={`/pix/minhas-chaves-pix/${encodeURIComponent(chave.id)}?contaId=${encodeURIComponent(conta.id)}`}
+                  className="block rounded-2xl focus-visible:outline-2 focus-visible:outline-indigo-600"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-full bg-[#EEF2FF] flex items-center justify-center shrink-0">
-                      <Icone aria-hidden="true" className="w-5 h-5 text-[#4F46E5] stroke-[1.8]" />
+                  <Card
+                    paddingClass="p-4"
+                    roundedClass="rounded-2xl"
+                    borderClass="border border-slate-100/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)]"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-11 h-11 rounded-full bg-[#EEF2FF] flex items-center justify-center shrink-0">
+                        <Icone aria-hidden="true" className="w-5 h-5 text-[#4F46E5] stroke-[1.8]" />
+                      </div>
+                      <div className="flex flex-1 flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-700">{ROTULOS_TIPO_CHAVE_PIX[chave.tipo]}</span>
+                        <span className="text-sm font-bold text-slate-800 mt-0.5 break-all">{chave.valor}</span>
+                        <span className="text-[11px] text-slate-400 mt-0.5">{rotuloConta(conta)}</span>
+                      </div>
+                      <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" />
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-slate-700">{rotulo}</span>
-                      <span className="text-sm font-bold text-slate-800 mt-0.5 break-all">{chave.valor}</span>
-                      <span className="text-[11px] text-slate-400 mt-0.5">{rotuloConta(conta)}</span>
-                    </div>
-                  </div>
-                </Card>
+                  </Card>
+                </Link>
               );
             })}
           </div>

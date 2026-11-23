@@ -1,4 +1,4 @@
-import type { Conta, TransferenciaPix, TransferirPixRequest } from "./api";
+import type { Conta, TipoChavePix, TransferenciaPix, TransferirPixRequest } from "./api";
 
 export interface RascunhoPix extends TransferirPixRequest {
   usuarioId: string;
@@ -7,6 +7,14 @@ export interface RascunhoPix extends TransferirPixRequest {
 const CHAVE_RASCUNHO = "byebank:pixPendente";
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dataHora = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
+
+export const ROTULOS_TIPO_CHAVE_PIX: Readonly<Record<TipoChavePix, string>> = {
+  CPF: "CPF",
+  CNPJ: "CNPJ",
+  EMAIL: "E-mail",
+  TELEFONE: "Telefone",
+  ALEATORIA: "Chave aleatória",
+};
 
 export function formatarMoeda(valor: number) {
   return moeda.format(valor);
