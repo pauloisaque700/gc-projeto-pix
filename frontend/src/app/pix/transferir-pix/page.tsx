@@ -62,6 +62,7 @@ export default function TransferirPix() {
     setTipoTransferencia('instantaneo');
     setDataAgendamento('');
     setHoraAgendamento('');
+    router.push('/tela-principal');
   };
 
   return (
