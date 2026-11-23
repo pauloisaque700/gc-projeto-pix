@@ -14,12 +14,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Repository
 public class RepositorioContaBancariaEmMemoria implements RepositorioContaBancaria {
     private final Map<UUID, ContaBancaria> contasPorId = new ConcurrentHashMap<>();
-    private final Map<String, UUID> idsPorIdentificacao = new ConcurrentHashMap<>();
 
     @Override
     public ContaBancaria salvar(ContaBancaria conta) {
         contasPorId.put(conta.getId(), conta);
-        idsPorIdentificacao.put(chaveIdentificacao(conta.getAgencia(), conta.getNumero()), conta.getId());
         return conta;
     }
 
@@ -30,7 +28,8 @@ public class RepositorioContaBancariaEmMemoria implements RepositorioContaBancar
 
     @Override
     public boolean existePorAgenciaENumero(String agencia, String numero) {
-        return idsPorIdentificacao.containsKey(chaveIdentificacao(agencia, numero));
+        return contasPorId.values().stream()
+                .anyMatch(conta -> conta.getAgencia().equals(agencia) && conta.getNumero().equals(numero));
     }
 
     @Override
@@ -48,10 +47,5 @@ public class RepositorioContaBancariaEmMemoria implements RepositorioContaBancar
     @Override
     public void remover(ContaBancaria conta) {
         contasPorId.remove(conta.getId());
-        idsPorIdentificacao.remove(chaveIdentificacao(conta.getAgencia(), conta.getNumero()));
-    }
-
-    private String chaveIdentificacao(String agencia, String numero) {
-        return agencia + ":" + numero;
     }
 }

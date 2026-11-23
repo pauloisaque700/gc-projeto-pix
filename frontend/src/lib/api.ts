@@ -60,6 +60,54 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
+// Chaves PIX
+// ---------------------------------------------------------------------------
+
+export type TipoChavePixManual = "CPF" | "CNPJ" | "EMAIL" | "TELEFONE";
+export type TipoChavePix = TipoChavePixManual | "ALEATORIA";
+
+export interface ChavePixResponse {
+  id: string;
+  contaId: string;
+  tipo: TipoChavePix;
+  valor: string;
+  criadaEm: string;
+}
+
+interface ValidarChavePixRequest {
+  tipo: TipoChavePixManual;
+  valor: string;
+}
+
+interface ValidarChavePixResponse {
+  tipo: TipoChavePixManual;
+  valorNormalizado: string;
+  valida: boolean;
+  disponivelParaAssociacao: boolean;
+}
+
+export function validarChavePix(dados: ValidarChavePixRequest) {
+  return request<ValidarChavePixResponse>("/api/chaves-pix/validar", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function associarChavePix(dados: ValidarChavePixRequest & { contaId: string }) {
+  return request<ChavePixResponse>("/api/chaves-pix", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function gerarChavePixAleatoria(contaId: string) {
+  return request<ChavePixResponse>("/api/chaves-pix/aleatoria", {
+    method: "POST",
+    body: JSON.stringify({ contaId }),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Usuário
 // ---------------------------------------------------------------------------
 
@@ -136,7 +184,6 @@ export type ContaBancariaResponse = Conta;
 export interface CriarContaBancariaRequest {
   usuarioId: string;
   agencia: string;
-  numero: string;
   tipoConta: "CORRENTE" | "POUPANCA";
 }
 
@@ -145,10 +192,10 @@ export interface AtualizarContaBancariaRequest {
   numero: string;
 }
 
-export function criarConta(dados: CriarContaBancariaRequest): Promise<Conta> {
+export function criarConta({ usuarioId, agencia, tipoConta }: CriarContaBancariaRequest): Promise<Conta> {
   return request<Conta>("/api/contas", {
     method: "POST",
-    body: JSON.stringify(dados),
+    body: JSON.stringify({ usuarioId, agencia, tipoConta }),
   });
 }
 
@@ -187,7 +234,7 @@ export function definirNotificacao(id: string, canal: "EMAIL" | "SMS" | null): P
 
 export interface ChavePixResolvida {
   chaveId: string;
-  tipo: "CPF" | "CNPJ" | "EMAIL" | "TELEFONE" | "ALEATORIA";
+  tipo: TipoChavePix;
   valor: string;
   contaId: string;
   nomeTitular: string;

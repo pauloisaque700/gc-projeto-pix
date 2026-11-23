@@ -1,308 +1,177 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import Card from "@/src/components/Card";
 import SmartphoneHeader from "@/src/components/SmartphoneHeader";
 import Tela from "@/src/components/Tela";
-import { criarConta } from "@/src/lib/api";
+import {
+  ApiError,
+  associarChavePix,
+  gerarChavePixAleatoria,
+  listarContasDoUsuario,
+  validarChavePix,
+  type ChavePixResponse,
+  type Conta,
+  type TipoChavePix,
+} from "@/src/lib/api";
 import { obterUsuarioLogado } from "@/src/lib/session";
 
-type TipoConta = "corrente" | "poupanca";
+const ROTULOS_TIPO: Record<TipoChavePix, string> = {
+  CPF: "CPF",
+  CNPJ: "CNPJ",
+  EMAIL: "E-mail",
+  TELEFONE: "Telefone",
+  ALEATORIA: "Chave aleatória",
+};
 
-export default function CriarContaBancaria() {
-  const router = useRouter();
-  const [tipoConta, setTipoConta] = useState<TipoConta>("corrente");
-  const [agencia, setAgencia] = useState<string>("");
-  const [conta, setConta] = useState<string>("");
-  const [carregando, setCarregando] = useState(false);
+const estiloCampo = "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 focus:border-indigo-500";
+const estiloBotao = "w-full rounded-xl bg-indigo-600 py-4 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60";
+
+function identificarConta(conta: Conta) {
+  const tipo = conta.tipoConta === "CORRENTE" ? "Corrente" : "Poupança";
+  return `${tipo} · Agência ${conta.agencia} · Conta ${conta.numero}`;
+}
+
+export default function AdicionarChavePix() {
+  const [contas, setContas] = useState<Conta[]>([]);
+  const [contaId, setContaId] = useState("");
+  const [tipo, setTipo] = useState<TipoChavePix>("EMAIL");
+  const [valor, setValor] = useState("");
+  const [carregando, setCarregando] = useState(true);
+  const [falhaAoCarregar, setFalhaAoCarregar] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [chaveCriada, setChaveCriada] = useState<ChavePixResponse | null>(null);
 
-  const handleAgenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const valor = e.target.value.replace(/\D/g, "");
-    setAgencia(valor);
-  };
+  useEffect(() => {
+    let ativo = true;
+    async function carregarContas() {
+      try {
+        const usuarioId = obterUsuarioLogado();
+        if (!usuarioId) {
+          throw new Error("Entre na sua conta para cadastrar uma chave PIX.");
+        }
+        const contasDoUsuario = await listarContasDoUsuario(usuarioId);
+        if (ativo) {
+          setContas(contasDoUsuario);
+          if (contasDoUsuario.length === 1) setContaId(contasDoUsuario[0].id);
+        }
+      } catch (error) {
+        if (ativo) {
+          setFalhaAoCarregar(error instanceof Error ? error.message : "Não foi possível carregar suas contas.");
+        }
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    }
 
-  const handleContaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Permite dígitos e o hífen
-    const valor = e.target.value.replace(/[^0-9-]/g, "");
-    setConta(valor);
-  };
+    void carregarContas();
+    return () => { ativo = false; };
+  }, []);
 
-  const handleSubmit = async () => {
+  async function cadastrar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (enviando || !contaId) return;
+
     setErro(null);
-    const usuarioId = obterUsuarioLogado();
-
-    if (!usuarioId) {
-      setErro("Usuário não encontrado. Faça login novamente.");
-      return;
-    }
-
-    // O backend exige apenas números para agência e conta.
-    const numeroLimpo = conta.replace(/\D/g, "");
-    const agenciaLimpa = agencia.replace(/\D/g, "");
-
-    if (!agenciaLimpa || !numeroLimpo) {
-      setErro("Preencha a agência e a conta corretamente.");
-      return;
-    }
-
-    setCarregando(true);
+    setEnviando(true);
     try {
-      await criarConta({
-        usuarioId,
-        agencia: agenciaLimpa,
-        numero: numeroLimpo,
-        tipoConta: tipoConta === "corrente" ? "CORRENTE" : "POUPANCA",
-      });
+      if (tipo === "ALEATORIA") {
+        setChaveCriada(await gerarChavePixAleatoria(contaId));
+        return;
+      }
 
-      // Se der certo, redireciona para o perfil
-      router.push("/login/tela-perfil");
+      const validacao = await validarChavePix({ tipo, valor: valor.trim() });
+      if (!validacao.valida) {
+        setErro("O valor informado é inválido para o tipo de chave selecionado.");
+        return;
+      }
+      if (!validacao.disponivelParaAssociacao) {
+        setErro("Esta chave PIX já está cadastrada.");
+        return;
+      }
+
+      setChaveCriada(await associarChavePix({ contaId, tipo, valor: validacao.valorNormalizado }));
     } catch (error) {
-      const mensagem =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível criar a conta. Tente novamente.";
+      const mensagem = error instanceof ApiError
+        ? Object.values(error.campos)[0] ?? error.message
+        : error instanceof Error ? error.message : "Não foi possível cadastrar a chave PIX.";
       setErro(mensagem);
     } finally {
-      setCarregando(false);
+      setEnviando(false);
     }
-  };
+  }
+
+  const contaAssociada = contas.find((conta) => conta.id === chaveCriada?.contaId);
 
   return (
     <Tela>
-      <div style={styles.container}>
-        <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/login/tela-perfil" />
-
-        <section style={styles.introducao}>
-          <h2 style={styles.tituloSecao}>Nova Conta Bancária</h2>
-          <p style={styles.subtitulo}>
-            Adicione os detalhes da sua conta corrente ou poupança para
-            integrar seu saldo à plataforma ByeBank.
+      <SmartphoneHeader title="Adicionar Chave PIX" backToUrl="/pix/minhas-chaves-pix" />
+      <Card>
+        {carregando && <p role="status">Carregando suas contas...</p>}
+        {falhaAoCarregar && <p role="alert" className="text-sm text-red-600">{falhaAoCarregar}</p>}
+        {!carregando && !falhaAoCarregar && contas.length === 0 && (
+          <p className="text-sm text-slate-700">
+            Você precisa de uma conta bancária para cadastrar uma chave PIX.{" "}
+            <Link href="/conta/criar-conta-bancaria" className="font-semibold text-indigo-700 underline">
+              Criar conta
+            </Link>
           </p>
-        </section>
-
-        <section style={styles.campo}>
-          <label style={styles.rotulo}>Tipo de conta</label>
-          <div style={styles.grupoTipoConta}>
-            <button
-              type="button"
-              onClick={() => setTipoConta("corrente")}
-              style={{
-                ...styles.botaoTipo,
-                ...(tipoConta === "corrente" ? styles.botaoTipoAtivo : {}),
-              }}
-            >
-              <span
-                style={{
-                  ...styles.radioIcone,
-                  ...(tipoConta === "corrente" ? styles.radioIconeAtivo : {}),
-                }}
-              />
-              <span
-                style={{
-                  ...styles.textoBotaoTipo,
-                  ...(tipoConta === "corrente" ? styles.textoBotaoTipoAtivo : {}),
-                }}
-              >
-                Corrente
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTipoConta("poupanca")}
-              style={{
-                ...styles.botaoTipo,
-                ...(tipoConta === "poupanca" ? styles.botaoTipoAtivo : {}),
-              }}
-            >
-              <span
-                style={{
-                  ...styles.radioIcone,
-                  ...(tipoConta === "poupanca" ? styles.radioIconeAtivo : {}),
-                }}
-              />
-              <span
-                style={{
-                  ...styles.textoBotaoTipo,
-                  ...(tipoConta === "poupanca" ? styles.textoBotaoTipoAtivo : {}),
-                }}
-              >
-                Poupança
-              </span>
-            </button>
-          </div>
-        </section>
-
-        <section style={styles.campo}>
-          <label style={styles.rotulo} htmlFor="agencia">
-            Agência
-          </label>
-          <div style={styles.inputWrapper}>
-            <span style={styles.inputIcone}>🏦</span>
-            <input
-              id="agencia"
-              type="text"
-              inputMode="numeric"
-              placeholder="Ex: 0001"
-              value={agencia}
-              onChange={handleAgenciaChange}
-              style={styles.input}
-              maxLength={4}
-            />
-          </div>
-        </section>
-
-        <section style={styles.campo}>
-          <label style={styles.rotulo} htmlFor="conta">
-            Conta
-          </label>
-          <div style={styles.inputWrapper}>
-            <span style={styles.inputIcone}>💳</span>
-            <input
-              id="conta"
-              type="text"
-              inputMode="numeric"
-              placeholder="Ex: 12345-6"
-              value={conta}
-              onChange={handleContaChange}
-              style={styles.input}
-              maxLength={8}
-            />
-          </div>
-        </section>
-
-        {erro && (
-          <div style={{ color: "red", fontSize: 14, marginBottom: 16, textAlign: "center" }}>
-            {erro}
-          </div>
         )}
 
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!agencia || !conta || carregando}
-          style={{
-            ...styles.botaoCriar,
-            ...(!agencia || !conta || carregando ? styles.botaoCriarDesabilitado : {}),
-          }}
-        >
-          {carregando ? "Criando..." : "Criar conta"}
-        </button>
-      </div>
+        {chaveCriada ? (
+          <div role="status" className="space-y-2 text-sm text-slate-700">
+            <h2 className="text-base font-semibold text-emerald-700">Chave PIX cadastrada</h2>
+            <p>{ROTULOS_TIPO[chaveCriada.tipo]}</p>
+            <p className="break-all font-semibold">{chaveCriada.valor}</p>
+            {contaAssociada && <p>{identificarConta(contaAssociada)}</p>}
+          </div>
+        ) : contas.length > 0 && (
+          <form onSubmit={cadastrar}>
+            <fieldset disabled={enviando} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="conta-pix" className="text-sm font-semibold text-slate-700">Conta para recebimento</label>
+                <select id="conta-pix" className={estiloCampo} required value={contaId} onChange={(event) => {
+                  setContaId(event.target.value);
+                  setErro(null);
+                }}>
+                  <option value="">Selecione uma conta</option>
+                  {contas.map((conta) => <option key={conta.id} value={conta.id}>{identificarConta(conta)}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="tipo-chave" className="text-sm font-semibold text-slate-700">Tipo de chave</label>
+                <select id="tipo-chave" className={estiloCampo} value={tipo} onChange={(event) => {
+                  setTipo(event.target.value as TipoChavePix);
+                  setValor("");
+                  setErro(null);
+                }}>
+                  {Object.entries(ROTULOS_TIPO).map(([tipoChave, rotulo]) => (
+                    <option key={tipoChave} value={tipoChave}>{rotulo}</option>
+                  ))}
+                </select>
+              </div>
+
+              {tipo !== "ALEATORIA" && (
+                <div className="space-y-2">
+                  <label htmlFor="valor-chave" className="text-sm font-semibold text-slate-700">{ROTULOS_TIPO[tipo]}</label>
+                  <input id="valor-chave" className={estiloCampo} required value={valor} onChange={(event) => {
+                    setValor(event.target.value);
+                    setErro(null);
+                  }} />
+                </div>
+              )}
+
+              {erro && <p role="alert" className="text-sm text-red-600">{erro}</p>}
+              <button type="submit" className={estiloBotao} disabled={!contaId || (tipo !== "ALEATORIA" && !valor.trim())}>
+                {enviando ? "Cadastrando..." : tipo === "ALEATORIA" ? "Gerar chave aleatória" : "Cadastrar chave PIX"}
+              </button>
+            </fieldset>
+          </form>
+        )}
+      </Card>
     </Tela>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    width: "100%",
-    boxSizing: "border-box",
-  },
-  introducao: {
-    marginBottom: 28,
-  },
-  tituloSecao: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: "#1A1A2E",
-    margin: "0 0 8px 0",
-  },
-  subtitulo: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  campo: {
-    marginBottom: 20,
-  },
-  rotulo: {
-    display: "block",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#374151",
-    marginBottom: 8,
-  },
-  grupoTipoConta: {
-    display: "flex",
-    gap: 12,
-  },
-  botaoTipo: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "14px 16px",
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderStyle: "solid",
-    borderColor: "#E5E7EB",
-    backgroundColor: "#FFFFFF",
-    cursor: "pointer",
-    transition: "border-color 0.15s ease, background-color 0.15s ease",
-  },
-  botaoTipoAtivo: {
-    borderColor: "#4F46E5",
-    backgroundColor: "#FFFFFF",
-  },
-  radioIcone: {
-    width: 18,
-    height: 18,
-    borderRadius: "50%",
-    border: "2px solid #D1D5DB",
-    display: "inline-block",
-    flexShrink: 0,
-    boxSizing: "border-box",
-  },
-  radioIconeAtivo: {
-    border: "5px solid #4F46E5",
-  },
-  textoBotaoTipo: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "#1A1A2E",
-  },
-  textoBotaoTipoAtivo: {
-    color: "#4F46E5",
-    fontWeight: 600,
-  },
-  inputWrapper: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "14px 16px",
-    borderRadius: 12,
-    border: "1.5px solid #E5E7EB",
-    backgroundColor: "#FFFFFF",
-  },
-  inputIcone: {
-    fontSize: 16,
-    flexShrink: 0,
-  },
-  input: {
-    border: "none",
-    outline: "none",
-    fontSize: 14,
-    color: "#1A1A2E",
-    width: "100%",
-    backgroundColor: "transparent",
-  },
-  botaoCriar: {
-    width: "100%",
-    padding: "16px",
-    borderRadius: 14,
-    border: "none",
-    backgroundColor: "#4F46E5",
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: "pointer",
-    marginTop: 8,
-    transition: "opacity 0.15s ease",
-  },
-  botaoCriarDesabilitado: {
-    opacity: 0.5,
-    cursor: "not-allowed",
-  },
-};

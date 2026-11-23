@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -37,7 +38,7 @@ class ContaBancariaControllerTest {
         usuarioId = usuario.getId();
         var servico = new ServicoContaBancaria(new RepositorioContaBancariaEmMemoria(), usuarios,
                 new RepositorioChavePixEmMemoria(), new RepositorioTransferenciaPixEmMemoria());
-        contaId = servico.cadastrar(new CadastroContaBancariaCommand(usuarioId, "0001", "123", null)).getId();
+        contaId = servico.cadastrar(new CadastroContaBancariaCommand(usuarioId, "0001", null)).getId();
         mvc = MockMvcBuilders.standaloneSetup(new ContaBancariaController(servico))
                 .setControllerAdvice(new ManipuladorDeExcecoesApi()).build();
     }
@@ -46,9 +47,10 @@ class ContaBancariaControllerTest {
     void deveExporNovosCamposAoCriarConsultarListarEAtualizar() throws Exception {
         mvc.perform(post("/api/contas").contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"usuarioId":"%s","agencia":"0001","numero":"456","tipoConta":"POUPANCA"}
+                        {"usuarioId":"%s","agencia":"0001","tipoConta":"POUPANCA"}
                         """.formatted(usuarioId)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.tipoConta").value("POUPANCA"))
+                .andExpect(jsonPath("$.numero").value(matchesPattern("[0-9]{6}")))
                 .andExpect(jsonPath("$.nomeTitular").value("Maria da Silva"));
         mvc.perform(get("/api/contas/{id}", contaId))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.tipoConta").value("CORRENTE"))
@@ -95,7 +97,7 @@ class ContaBancariaControllerTest {
         }
         mvc.perform(post("/api/contas").contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"usuarioId":"%s","agencia":"1","numero":"2","tipoConta":"INVALIDO"}
+                        {"usuarioId":"%s","agencia":"1","tipoConta":"INVALIDO"}
                         """.formatted(usuarioId))).andExpect(status().isBadRequest());
         mvc.perform(patch("/api/contas/{id}/status", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\":\"BLOQUEADA\"}")).andExpect(status().isNotFound());
