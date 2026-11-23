@@ -107,6 +107,10 @@ export function gerarChavePixAleatoria(contaId: string) {
   });
 }
 
+export function listarChavesPixDaConta(contaId: string) {
+  return request<ChavePixResponse[]>(`/api/contas/${encodeURIComponent(contaId)}/chaves-pix`, { cache: "no-store" });
+}
+
 // ---------------------------------------------------------------------------
 // Usuário
 // ---------------------------------------------------------------------------
