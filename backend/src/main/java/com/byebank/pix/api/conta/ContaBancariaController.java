@@ -35,7 +35,7 @@ public class ContaBancariaController {
     @PostMapping("/contas")
     public ResponseEntity<ContaBancariaResponse> criar(@Valid @RequestBody CriarContaBancariaRequest request) {
         ContaBancaria conta = servicoConta.cadastrar(new CadastroContaBancariaCommand(
-                request.usuarioId(), request.agencia(), request.numero(),
+                request.usuarioId(), request.agencia(),
                 request.tipoConta() == null ? null : TipoConta.valueOf(request.tipoConta())));
         ContaBancariaResponse resposta = responder(conta);
         URI localizacao = ServletUriComponentsBuilder.fromCurrentRequest()

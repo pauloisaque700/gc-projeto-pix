@@ -75,8 +75,10 @@ public final class ContaBancaria {
     }
 
     public void atualizarDados(String agencia, String numero) {
-        this.agencia = validarAgencia(agencia);
-        this.numero = validarNumero(numero);
+        String agenciaValidada = validarAgencia(agencia);
+        String numeroValidado = validarNumero(numero);
+        this.agencia = agenciaValidada;
+        this.numero = numeroValidado;
         this.atualizadaEm = Instant.now();
     }
 

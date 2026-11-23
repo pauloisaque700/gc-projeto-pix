@@ -65,27 +65,11 @@ Exemplo de criação de conta:
 {
   "usuarioId": "substitua-pelo-id-do-usuario",
   "agencia": "0001",
-  "numero": "123456"
+  "tipoConta": "CORRENTE"
 }
 ```
 
-Cada conta inicia com saldo `0.00`. A remoção de contas e de usuários é feita em cascata na API em memória (veja [Cascade de remoção](#cascade-de-remoção)).
-
-## API PIX
-
-| Método | Rota | Finalidade |
-| --- | --- | --- |
-| `POST` | `/api/chaves-pix` | Associa CPF, CNPJ, e-mail ou telefone a uma conta. |
-| `POST` | `/api/chaves-pix/aleatoria` | Gera e associa uma chave aleatória. |
-| `POST` | `/api/chaves-pix/validar` | Verifica o formato e a disponibilidade da chave. |
-| `GET` | `/api/chaves-pix/resolver` | Consulta a chave pelo valor e identifica seu titular. |
-| `GET` | `/api/chaves-pix/{id}` | Consulta uma chave pelo ID. |
-| `GET` | `/api/contas/{contaId}/chaves-pix` | Lista as chaves da conta. |
-| `DELETE` | `/api/chaves-pix/{id}` | Remove uma chave PIX. |
-| `POST` | `/api/pix/transferencias` | Transfere entre contas usando a chave de destino. |
-| `POST` | `/api/pix/recebimentos-externos` | Simula o recebimento de um PIX externo. |
-| `GET` | `/api/pix/transferencias/{id}` | Consulta uma transferência. |
-| `GET` | `/api/contas/{contaId}/extrato-pix` | Lista as transferências da conta. |
+Cada conta recebe um número aleatório de seis dígitos, único na agência, e inicia com saldo `0.00`. A remoção de contas e de usuários é feita em cascata (veja [Cascade de remoção](#cascade-de-remoção)).
 
 ## Cascade de remoção
 

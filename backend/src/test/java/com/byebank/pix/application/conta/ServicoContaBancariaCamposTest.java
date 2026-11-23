@@ -120,7 +120,7 @@ class ServicoContaBancariaCamposTest {
 
     private ContaBancaria criarConta(TipoConta tipoConta) {
         return servicoConta.cadastrar(new CadastroContaBancariaCommand(
-                titular.getId(), "0001", "123456", tipoConta
+                titular.getId(), "0001", tipoConta
         ));
     }
 }

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class ServicoContaBancaria {
@@ -35,12 +36,14 @@ public class ServicoContaBancaria {
         this.repositorioTransferencia = repositorioTransferencia;
     }
 
-    public ContaBancaria cadastrar(CadastroContaBancariaCommand comando) {
+    public synchronized ContaBancaria cadastrar(CadastroContaBancariaCommand comando) {
         garantirUsuarioExiste(comando.usuarioId());
-        if (repositorioConta.existePorAgenciaENumero(comando.agencia(), comando.numero())) {
-            throw new RegraDeNegocioException("Já existe uma conta cadastrada com esta agência e número.");
-        }
-        return repositorioConta.salvar(ContaBancaria.criar(comando.usuarioId(), comando.agencia(), comando.numero(),
+        String numero;
+        do {
+            numero = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 1_000_000));
+        } while (repositorioConta.existePorAgenciaENumero(comando.agencia(), numero));
+
+        return repositorioConta.salvar(ContaBancaria.criar(comando.usuarioId(), comando.agencia(), numero,
                 comando.tipoConta() == null ? TipoConta.CORRENTE : comando.tipoConta()));
     }
 
@@ -92,7 +95,7 @@ public class ServicoContaBancaria {
         return repositorioConta.listarPorUsuarioId(usuarioId);
     }
 
-    public ContaBancaria atualizar(UUID id, AtualizacaoContaBancariaCommand comando) {
+    public synchronized ContaBancaria atualizar(UUID id, AtualizacaoContaBancariaCommand comando) {
         ContaBancaria conta = buscarPorId(id);
         boolean alterouIdentificacao = !conta.getAgencia().equals(comando.agencia())
                 || !conta.getNumero().equals(comando.numero());
