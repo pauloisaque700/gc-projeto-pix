@@ -56,6 +56,54 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
+// Chaves PIX
+// ---------------------------------------------------------------------------
+
+export type TipoChavePixManual = "CPF" | "CNPJ" | "EMAIL" | "TELEFONE";
+export type TipoChavePix = TipoChavePixManual | "ALEATORIA";
+
+export interface ChavePixResponse {
+  id: string;
+  contaId: string;
+  tipo: TipoChavePix;
+  valor: string;
+  criadaEm: string;
+}
+
+interface ValidarChavePixRequest {
+  tipo: TipoChavePixManual;
+  valor: string;
+}
+
+interface ValidarChavePixResponse {
+  tipo: TipoChavePixManual;
+  valorNormalizado: string;
+  valida: boolean;
+  disponivelParaAssociacao: boolean;
+}
+
+export function validarChavePix(dados: ValidarChavePixRequest) {
+  return request<ValidarChavePixResponse>("/api/chaves-pix/validar", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function associarChavePix(dados: ValidarChavePixRequest & { contaId: string }) {
+  return request<ChavePixResponse>("/api/chaves-pix", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function gerarChavePixAleatoria(contaId: string) {
+  return request<ChavePixResponse>("/api/chaves-pix/aleatoria", {
+    method: "POST",
+    body: JSON.stringify({ contaId }),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Usuário
 // ---------------------------------------------------------------------------
 
