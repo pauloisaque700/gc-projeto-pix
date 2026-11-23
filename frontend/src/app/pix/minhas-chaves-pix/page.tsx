@@ -149,7 +149,11 @@ export default function MinhasChavesPix() {
                 textClass="text-[#4F46E5] font-semibold"
                 widthClass="w-full"
                 icon={<RotateCw className="w-4 h-4 stroke-[2.2]" />}
+<<<<<<< HEAD
                 onClick={() => router.push('/pix/adicionar-chave')}
+=======
+                onClick={() => router.push('pix/adicionar-chave')}
+>>>>>>> parent of 8b06035 (Revert "fix/corrigindo-rotas")
             />
           
         </div>

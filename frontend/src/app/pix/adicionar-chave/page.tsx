@@ -1,4 +1,13 @@
-"use client";
+"use client"
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Mail, CreditCard, ChevronDown, AlertCircle, User, Phone } from 'lucide-react'
+import Tela from '../../../components/Tela'
+import SmartphoneHeader from '../../../components/SmartphoneHeader'
+import Card from '../../../components/Card'
+import Input from '../../../components/Input'
+import BotaoGrande from '../../../components/BotaoGrande'
+import { buscarConta, ApiError } from '../../../lib/api'
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
