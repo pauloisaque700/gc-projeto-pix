@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, DollarSign, ChevronDown, Calendar, Clock } from 'lucide-react';
 import Tela from '../../../components/Tela';
 import SmartphoneHeader from '../../../components/SmartphoneHeader';
@@ -10,6 +11,8 @@ import Input from '../../../components/Input';
 import BotaoGrande from '../../../components/BotaoGrande';
 
 export default function TransferirPix() {  
+  const router = useRouter();
+
   interface Conta {
     id: string;
     tipoConta: string;
@@ -49,6 +52,16 @@ export default function TransferirPix() {
       horaAgendamento
     });
     // Lógica para avançar de passo ou enviar para a API
+  };
+
+  // Cancela o PIX: para o loading, volta os campos ao estado inicial e sai da tela
+  const handleCancelar = () => {
+    setLoading(false);
+    setChaveDestinatario('');
+    setValorTransferencia('250,00');
+    setTipoTransferencia('instantaneo');
+    setDataAgendamento('');
+    setHoraAgendamento('');
   };
 
   return (
@@ -171,7 +184,7 @@ export default function TransferirPix() {
           <div className="grid grid-cols-2 gap-3 mt-4">
             <button
               type="button"
-              onClick={() => window.history.back()}
+              onClick={handleCancelar}
               className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-base py-3.5 transition-colors cursor-pointer"
             >
               Cancelar
