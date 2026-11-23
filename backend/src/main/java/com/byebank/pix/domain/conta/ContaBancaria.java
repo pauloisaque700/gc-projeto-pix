@@ -11,7 +11,7 @@ public final class ContaBancaria {
     private final UUID usuarioId;
     private final Instant criadaEm;
     private String agencia;
-    private String numero;
+    private final String numero;
     private Dinheiro saldo;
     private TipoConta tipoConta;
     private Dinheiro limiteDiario;
@@ -74,11 +74,8 @@ public final class ContaBancaria {
         atualizadaEm = Instant.now();
     }
 
-    public void atualizarDados(String agencia, String numero) {
-        String agenciaValidada = validarAgencia(agencia);
-        String numeroValidado = validarNumero(numero);
-        this.agencia = agenciaValidada;
-        this.numero = numeroValidado;
+    public void atualizarAgencia(String agencia) {
+        this.agencia = validarAgencia(agencia);
         this.atualizadaEm = Instant.now();
     }
 

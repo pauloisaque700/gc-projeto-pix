@@ -17,13 +17,16 @@ const formatarMoeda = (valor: number) =>
 
 function CampoLeitura({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
-      {label}
-      <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>
-        <input readOnly value={value} className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-normal text-slate-600" />
-      </div>
-    </label>
+    <dl className="flex flex-col gap-1 rounded-xl bg-slate-50 px-4 py-3 text-sm">
+      <dt className="flex flex-wrap items-baseline justify-between gap-x-2 font-semibold text-slate-700">
+        {label}
+        <span className="text-xs font-normal text-slate-600">Somente leitura</span>
+      </dt>
+      <dd className="flex items-center gap-2 text-slate-700">
+        <span aria-hidden="true" className="shrink-0 text-slate-500">{icon}</span>
+        <span className="min-w-0 break-words">{value}</span>
+      </dd>
+    </dl>
   )
 }
 
@@ -78,7 +81,6 @@ function EditarConta({ sessao, usuario, contaInicial, contaSelecionadaId }: {
   const [telefone, setTelefone] = useState(usuario.telefone)
   const [conta, setConta] = useState(contaInicial)
   const [agencia, setAgencia] = useState(contaInicial?.agencia ?? '')
-  const [numeroConta, setNumeroConta] = useState(contaInicial?.numero ?? '')
   const [limite, setLimite] = useState(contaInicial ? formatarMoeda(contaInicial.limiteDiario) : '')
   const [notificacao, setNotificacao] = useState(contaInicial?.notificacao ?? null)
   const [salvando, setSalvando] = useState(false)
@@ -118,8 +120,8 @@ function EditarConta({ sessao, usuario, contaInicial, contaSelecionadaId }: {
       setErro('Informe um limite diário válido.')
       return
     }
-    if (conta && (!/^\d{1,10}$/.test(agencia) || !/^\d{1,20}$/.test(numeroConta))) {
-      setErro('Informe uma agência e um número de conta válidos.')
+    if (conta && !/^\d{1,10}$/.test(agencia)) {
+      setErro('Informe uma agência válida.')
       return
     }
     if (conta && notificacao !== null && notificacao !== 'EMAIL' && notificacao !== 'SMS') {
@@ -142,7 +144,7 @@ function EditarConta({ sessao, usuario, contaInicial, contaSelecionadaId }: {
       setTelefone(atualizado.telefone)
       if (conta) {
         const contaId = conta.id
-        await atualizarConta(contaId, { agencia, numero: numeroConta })
+        await atualizarConta(contaId, { agencia })
         if (!sessaoValida()) return
         await definirLimiteDiario(contaId, limiteNumerico)
         if (!sessaoValida()) return
@@ -150,7 +152,6 @@ function EditarConta({ sessao, usuario, contaInicial, contaSelecionadaId }: {
         if (!sessaoValida()) return
         setConta(atualizada)
         setAgencia(atualizada.agencia)
-        setNumeroConta(atualizada.numero)
         setLimite(formatarMoeda(atualizada.limiteDiario))
         setNotificacao(atualizada.notificacao)
       }
@@ -181,14 +182,13 @@ function EditarConta({ sessao, usuario, contaInicial, contaSelecionadaId }: {
           <Input label="E-mail" placeholder="seu@email.com" type="email" icon={<Mail className={icone} />} value={email} onChange={(e) => setEmail(e.target.value)} />
           <Input label="Telefone" placeholder="(00) 00000-0000" type="tel" icon={<Phone className={icone} />} value={telefone} onChange={(e) => setTelefone(e.target.value)} />
           <CampoLeitura label={tipoDocumento} value={documento} icon={<CreditCard className={icone} />} />
-          <p className="text-xs text-slate-500">{tipoDocumento} não pode ser alterado.</p>
         </Card>
 
         <Card>
           <h2 className="text-lg font-semibold text-slate-800">Dados da conta</h2>
           {conta ? <>
             <Input label="Agência" placeholder="Agência" icon={<Landmark className={icone} />} value={agencia} onChange={(e) => setAgencia(e.target.value.replace(/\D/g, '').slice(0, 10))} />
-            <Input label="Número da conta" placeholder="Número da conta" icon={<Hash className={icone} />} value={numeroConta} onChange={(e) => setNumeroConta(e.target.value.replace(/\D/g, '').slice(0, 20))} />
+            <CampoLeitura label="Número da conta" value={conta.numero} icon={<Hash className={icone} />} />
             <CampoLeitura label="Titular" value={conta.nomeTitular} icon={<User className={icone} />} />
             <CampoLeitura label="Tipo de conta" value={conta.tipoConta === 'CORRENTE' ? 'Conta Corrente' : 'Conta Poupança'} icon={<Landmark className={icone} />} />
             <Input label="Limite diário" placeholder="R$ 0,00" icon={<Wallet className={icone} />} value={limite} onChange={(e) => handleLimiteChange(e.target.value)} />

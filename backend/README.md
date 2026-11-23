@@ -55,7 +55,7 @@ No cadastro e na atualização, `Email` remove espaços nas extremidades e conve
 | --- | --- | --- |
 | `POST` | `/api/contas` | Cria uma conta para um usuário existente. |
 | `GET` | `/api/contas/{id}` | Consulta uma conta. |
-| `PUT` | `/api/contas/{id}` | Atualiza agência e número. |
+| `PUT` | `/api/contas/{id}` | Atualiza a agência. Se informado, `numero` deve ser igual ao número atual. |
 | `DELETE` | `/api/contas/{id}` | Remove uma conta. |
 | `GET` | `/api/usuarios/{usuarioId}/contas` | Lista as contas de um usuário. |
 
