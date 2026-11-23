@@ -1,4 +1,25 @@
 services:
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    container_name: pix-mysql-${APP_ENV:-dev}
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-byebank_db}
+      MYSQL_USER: ${MYSQL_USER:-byebank}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-byebank123}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword123}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword123}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - pix-network
+
   backend:
     image: ${BACKEND_IMAGE:-pix-backend:local}
     build:
@@ -9,6 +30,12 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=${APP_ENV:-dev}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/byebank_db?serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME:-${MYSQL_USER:-byebank}}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD:-${MYSQL_PASSWORD:-byebank123}}
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - pix-network
 
@@ -28,6 +55,9 @@ services:
       - backend
     networks:
       - pix-network
+
+volumes:
+  mysql-data:
 
 networks:
   pix-network:
