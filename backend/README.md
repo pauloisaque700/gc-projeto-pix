@@ -26,6 +26,12 @@ Use o perfil opcional `memoria` para executar ou testar a API sem um servidor My
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=memoria
 ```
 
+## Identidade e autorização
+
+O cadastro retorna um UUID que o frontend guarda no `localStorage` para selecionar os dados exibidos. Os IDs recebidos na URL ou no corpo identificam recursos ou relações declaradas pelo cliente. A API atual não autentica o solicitante e não aplica autorização por titularidade. A configuração CORS limita as origens do navegador. Use este fluxo localmente, com dados fictícios.
+
+A associação de chave CPF ou CNPJ confere o documento com o cadastro do titular da conta. Os extratos restringem os resultados à conta consultada. Essas são verificações de domínio. A autorização depende de uma identidade autenticada pelo servidor e de uma política na camada de serviço para contas, chaves e transferências. O débito deve exigir permissão sobre a conta de origem, a consulta de uma transferência deve considerar seus participantes e o recebimento externo depende de um emissor confiável.
+
 ## API de usuários
 
 | Método | Rota | Finalidade |
