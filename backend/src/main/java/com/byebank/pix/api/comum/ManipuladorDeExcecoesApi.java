@@ -8,6 +8,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -37,6 +38,12 @@ public class ManipuladorDeExcecoesApi {
             campos.putIfAbsent(erro.getField(), erro.getDefaultMessage());
         }
         return resposta(HttpStatus.BAD_REQUEST, "Existem campos inválidos na requisição.", campos);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErroApi> tratarTipoDeParametroInvalido(MethodArgumentTypeMismatchException excecao) {
+        return resposta(HttpStatus.BAD_REQUEST, "Existem campos inválidos na requisição.",
+                Map.of(excecao.getName(), "O parâmetro tem formato inválido."));
     }
 
     private ResponseEntity<ErroApi> resposta(HttpStatus status, String mensagem, Map<String, String> campos) {

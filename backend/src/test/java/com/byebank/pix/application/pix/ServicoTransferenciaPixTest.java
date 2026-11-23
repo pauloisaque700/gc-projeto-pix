@@ -19,21 +19,32 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 class ServicoTransferenciaPixTest {
     private static final String CHAVE_ORIGEM = "origem@exemplo.com";
     private static final String CHAVE_DESTINO = "destino@exemplo.com";
 
     private RepositorioContaBancariaEmMemoria repositorioConta;
+    private RepositorioChavePixEmMemoria repositorioChave;
+    private RepositorioTransferenciaPixEmMemoria repositorioTransferencia;
     private ServicoTransferenciaPix servicoTransferencia;
     private ContaBancaria contaOrigem;
     private ContaBancaria contaDestino;
@@ -42,8 +53,8 @@ class ServicoTransferenciaPixTest {
     void preparar() {
         RepositorioUsuarioEmMemoria repositorioUsuario = new RepositorioUsuarioEmMemoria();
         repositorioConta = new RepositorioContaBancariaEmMemoria();
-        RepositorioChavePixEmMemoria repositorioChave = new RepositorioChavePixEmMemoria();
-        RepositorioTransferenciaPixEmMemoria repositorioTransferencia = new RepositorioTransferenciaPixEmMemoria();
+        repositorioChave = new RepositorioChavePixEmMemoria();
+        repositorioTransferencia = new RepositorioTransferenciaPixEmMemoria();
 
         Usuario titularOrigem = Usuario.cadastrar(
                 "Maria da Silva",
@@ -96,6 +107,9 @@ class ServicoTransferenciaPixTest {
         assertEquals(contaOrigem.getId(), transferencia.getContaOrigemId());
         assertEquals(contaDestino.getId(), transferencia.getContaDestinoId());
         assertEquals(CHAVE_DESTINO, transferencia.getChaveDestinoUtilizada());
+        assertEquals(List.of(transferencia), servicoTransferencia.listarExtrato(contaDestino.getId()));
+        assertEquals(1, servicoTransferencia.listarExtrato(contaOrigem.getId()).stream()
+                .filter(item -> !item.ehRecebimentoExterno()).count());
     }
 
     @Test
@@ -110,30 +124,45 @@ class ServicoTransferenciaPixTest {
     @Test
     void deveRejeitarSaldoInsuficiente() {
         fundearOrigem("20.00");
+        var antes = estadoDasContas();
 
         assertThrows(RegraDeNegocioException.class, () -> transferir(CHAVE_DESTINO, "30.00"));
 
-        assertEquals("20.00", saldoDe(contaOrigem));
-        assertEquals("0.00", saldoDe(contaDestino));
-        assertEquals(1, servicoTransferencia.listarExtrato(contaOrigem.getId()).size());
-        assertTrue(servicoTransferencia.listarExtrato(contaDestino.getId()).isEmpty());
+        assertEquals(antes, estadoDasContas());
     }
 
     @Test
     void deveFalharQuandoChaveDestinoNaoExiste() {
         fundearOrigem("100.00");
+        var antes = estadoDasContas();
 
         assertThrows(RecursoNaoEncontradoException.class, () -> transferir("naoexiste@exemplo.com", "10.00"));
+
+        assertEquals(antes, estadoDasContas());
+    }
+
+    @Test
+    void devePreservarAsContasQuandoUmaDelasNaoExiste() {
+        fundearOrigem("100.00");
+        var antes = estadoDasContas();
+        var comando = new TransferirPixCommand(UUID.randomUUID(), CHAVE_DESTINO, new BigDecimal("10.00"));
+        assertThrows(RecursoNaoEncontradoException.class, () -> servicoTransferencia.transferir(comando));
+        assertEquals(antes, estadoDasContas());
+
+        repositorioConta.remover(contaDestino);
+        assertThrows(RecursoNaoEncontradoException.class, () -> transferir(CHAVE_DESTINO, "10.00"));
+        assertEquals(antes, estadoDasContas());
+        assertTrue(repositorioConta.buscarPorId(contaDestino.getId()).isEmpty());
     }
 
     @Test
     void deveRejeitarValorZero() {
         fundearOrigem("100.00");
+        var antes = estadoDasContas();
 
         assertThrows(RegraDeNegocioException.class, () -> transferir(CHAVE_DESTINO, "0.00"));
 
-        assertEquals("100.00", saldoDe(contaOrigem));
-        assertEquals("0.00", saldoDe(contaDestino));
+        assertEquals(antes, estadoDasContas());
     }
 
     @Test
@@ -141,13 +170,11 @@ class ServicoTransferenciaPixTest {
         contaOrigem.definirLimiteDiario(Dinheiro.de(new BigDecimal("100.00")));
         fundearOrigem("110.00");
         transferir(CHAVE_DESTINO, "60.00");
+        var antes = estadoDasContas();
 
         assertThrows(RegraDeNegocioException.class, () -> transferir(CHAVE_DESTINO, "50.00"));
 
-        assertEquals("50.00", saldoDe(contaOrigem));
-        assertEquals(1, servicoTransferencia.listarExtrato(contaOrigem.getId()).stream()
-                .filter(transferencia -> contaOrigem.getId().equals(transferencia.getContaOrigemId()))
-                .count());
+        assertEquals(antes, estadoDasContas());
     }
 
     @Test
@@ -167,6 +194,201 @@ class ServicoTransferenciaPixTest {
         assertTrue(idsOrigem.contains(enviada.getId()));
         assertEquals(1, idsDestino.size());
         assertTrue(idsDestino.contains(enviada.getId()));
+    }
+
+    @Test
+    void devePreservarSaldosEExtratosComOrigemBloqueada() {
+        fundearOrigem("100.00");
+        contaOrigem.bloquear();
+        var antes = estadoDasContas();
+
+        assertThrows(IllegalStateException.class, () -> transferir(CHAVE_DESTINO, "10.00"));
+
+        assertEquals(antes, estadoDasContas());
+    }
+
+    @Test
+    void devePreservarSaldosEExtratosComDestinoBloqueado() {
+        fundearOrigem("100.00");
+        contaDestino.bloquear();
+        var antes = estadoDasContas();
+
+        assertThrows(IllegalStateException.class, () -> transferir(CHAVE_DESTINO, "10.00"));
+
+        assertEquals(antes, estadoDasContas());
+    }
+
+    @Test
+    void deveRestaurarEstadoQuandoDebitoFalhaAposAlterarSaldo() {
+        fundearOrigem("100.00");
+        contaOrigem = repositorioConta.salvar(spy(contaOrigem));
+        var falha = new IllegalStateException("Falha no débito");
+        doAnswer(invocacao -> {
+            invocacao.callRealMethod();
+            throw falha;
+        }).when(contaOrigem).debitar(any(Dinheiro.class));
+        var antes = estadoDasContas();
+
+        assertSame(falha, assertThrows(IllegalStateException.class, () -> transferir(CHAVE_DESTINO, "10.00")));
+        assertEquals(antes, estadoDasContas());
+    }
+
+    @Test
+    void deveRestaurarEstadoQuandoCreditoFalhaAposAlterarSaldo() {
+        fundearOrigem("100.00");
+        contaDestino = repositorioConta.salvar(spy(contaDestino));
+        var falha = new IllegalStateException("Falha no crédito");
+        doAnswer(invocacao -> {
+            invocacao.callRealMethod();
+            throw falha;
+        }).when(contaDestino).creditar(any(Dinheiro.class));
+        var antes = estadoDasContas();
+
+        assertSame(falha, assertThrows(IllegalStateException.class, () -> transferir(CHAVE_DESTINO, "10.00")));
+        assertEquals(antes, estadoDasContas());
+    }
+
+    @Test
+    void deveRestaurarEstadoQuandoSalvamentoDaContaFalha() {
+        fundearOrigem("100.00");
+        repositorioConta = spy(repositorioConta);
+        var falha = new IllegalStateException("Falha ao salvar conta");
+        doAnswer(invocacao -> {
+            invocacao.callRealMethod();
+            throw falha;
+        }).when(repositorioConta).salvar(contaDestino);
+        servicoTransferencia = new ServicoTransferenciaPix(repositorioConta, repositorioChave, repositorioTransferencia);
+        var antes = estadoDasContas();
+
+        assertSame(falha, assertThrows(IllegalStateException.class, () -> transferir(CHAVE_DESTINO, "10.00")));
+        assertEquals(antes, estadoDasContas());
+    }
+
+    @Test
+    void deveRemoverRegistroParcialERestaurarSaldosMesmoComFalhaInesperada() {
+        fundearOrigem("100.00");
+        var falha = new AssertionError("Falha após inserir a transferência");
+        injetarFalhaDepoisDeRegistrar(falha);
+        var antes = estadoDasContas();
+
+        assertSame(falha, assertThrows(AssertionError.class, () -> transferir(CHAVE_DESTINO, "10.00")));
+        assertEquals(antes, estadoDasContas());
+    }
+
+    @Test
+    void deveReverterRecebimentoExternoQuandoRegistroFalha() {
+        var falha = new IllegalStateException("Falha no registro externo");
+        injetarFalhaDepoisDeRegistrar(falha);
+        var antes = estadoDasContas();
+
+        assertSame(falha, assertThrows(IllegalStateException.class, () -> servicoTransferencia.receberExterno(
+                new ReceberPixExternoCommand(CHAVE_DESTINO, new BigDecimal("10.00"), null))));
+        assertEquals(antes, estadoDasContas());
+    }
+
+    @Test
+    void deveImpedirQueEnviosConcorrentesConsumamOMesmoSaldo() throws Exception {
+        fundearOrigem("100.00");
+
+        conferirApenasUmEnvioConcorrente("Saldo insuficiente para realizar a transferência.");
+
+        assertEquals("30.00", saldoDe(contaOrigem));
+    }
+
+    @Test
+    void deveImpedirQueEnviosConcorrentesExcedamOLimite() throws Exception {
+        fundearOrigem("200.00");
+        contaOrigem.definirLimiteDiario(Dinheiro.de(new BigDecimal("100.00")));
+
+        conferirApenasUmEnvioConcorrente("Limite diário de transferência excedido.");
+
+        assertEquals("130.00", saldoDe(contaOrigem));
+    }
+
+    @Test
+    void deveConcluirEnviosEmSentidosOpostosSemBloqueioMutuo() throws Exception {
+        fundearOrigem("100.00");
+        contaDestino.creditar(Dinheiro.de(new BigDecimal("100.00")));
+
+        List<TransferenciaPix> enviadas = executarJuntas(
+                () -> transferir(CHAVE_DESTINO, "30.00"),
+                () -> servicoTransferencia.transferir(new TransferirPixCommand(
+                        contaDestino.getId(), CHAVE_ORIGEM, new BigDecimal("15.00"))));
+
+        assertEquals("85.00", saldoDe(contaOrigem));
+        assertEquals("115.00", saldoDe(contaDestino));
+        var extratoDestino = servicoTransferencia.listarExtrato(contaDestino.getId());
+        assertEquals(2, extratoDestino.size());
+        assertTrue(extratoDestino.containsAll(enviadas));
+    }
+
+    @Test
+    void deveAcumularCreditoExternoEInternoConcorrentesNoDestino() throws Exception {
+        fundearOrigem("100.00");
+
+        List<TransferenciaPix> creditadas = executarJuntas(
+                () -> transferir(CHAVE_DESTINO, "30.00"),
+                () -> servicoTransferencia.receberExterno(new ReceberPixExternoCommand(
+                        CHAVE_DESTINO, new BigDecimal("40.00"), null)));
+
+        assertEquals("70.00", saldoDe(contaOrigem));
+        assertEquals("70.00", saldoDe(contaDestino));
+        var extratoDestino = servicoTransferencia.listarExtrato(contaDestino.getId());
+        assertEquals(2, extratoDestino.size());
+        assertTrue(extratoDestino.containsAll(creditadas));
+    }
+
+    private void injetarFalhaDepoisDeRegistrar(Throwable falha) {
+        repositorioTransferencia = spy(repositorioTransferencia);
+        doAnswer(invocacao -> {
+            invocacao.callRealMethod();
+            throw falha;
+        }).when(repositorioTransferencia).salvar(any(TransferenciaPix.class));
+        servicoTransferencia = new ServicoTransferenciaPix(repositorioConta, repositorioChave, repositorioTransferencia);
+    }
+
+    private void conferirApenasUmEnvioConcorrente(String mensagem) throws Exception {
+        Callable<Boolean> envio = () -> {
+            try {
+                transferir(CHAVE_DESTINO, "70.00");
+                return true;
+            } catch (RegraDeNegocioException falha) {
+                assertEquals(mensagem, falha.getMessage());
+                return false;
+            }
+        };
+        assertEquals(1, executarJuntas(envio, envio).stream().filter(Boolean::booleanValue).count());
+        assertEquals("70.00", saldoDe(contaDestino));
+        assertEquals(1, servicoTransferencia.listarExtrato(contaDestino.getId()).size());
+    }
+
+    private static <T> List<T> executarJuntas(Callable<T> primeira, Callable<T> segunda) throws Exception {
+        var prontas = new CountDownLatch(2);
+        var largada = new CountDownLatch(1);
+        var executor = Executors.newFixedThreadPool(2, Thread.ofPlatform().daemon().factory());
+        try {
+            var resultados = List.of(primeira, segunda).stream().map(operacao -> executor.submit(() -> {
+                prontas.countDown();
+                assertTrue(largada.await(5, TimeUnit.SECONDS));
+                return operacao.call();
+            })).toList();
+            assertTrue(prontas.await(5, TimeUnit.SECONDS));
+            largada.countDown();
+            return List.of(resultados.get(0).get(5, TimeUnit.SECONDS), resultados.get(1).get(5, TimeUnit.SECONDS));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private record EstadoFinanceiro(Dinheiro saldo, Instant atualizadaEm, List<TransferenciaPix> registros) {}
+
+    private List<EstadoFinanceiro> estadoDasContas() {
+        return List.of(estadoDe(contaOrigem), estadoDe(contaDestino));
+    }
+
+    private EstadoFinanceiro estadoDe(ContaBancaria conta) {
+        return new EstadoFinanceiro(conta.getSaldo(), conta.getAtualizadaEm(),
+                repositorioTransferencia.listarPorConta(conta.getId()));
     }
 
     private TransferenciaPix fundearOrigem(String valor) {
