@@ -1,47 +1,16 @@
 "use client"
 
-import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Tela from "../../../components/Tela"
 import SmartphoneHeader from "../../../components/SmartphoneHeader"
 import Card from "../../../components/Card"
 import BotaoGrande from "../../../components/BotaoGrande"
-import { Plus, AlertCircle, LoaderCircle, Trash2 } from "lucide-react"
-import { removerConta } from "../../../lib/api"
-import { obterSessaoLocal, type SessaoLocal } from "../../../lib/session"
+import { Plus, AlertCircle, Trash2 } from "lucide-react"
 import { useDadosDaSessao } from "../../../lib/use-dados-da-sessao"
 
 export default function MinhasContasBancarias() {
   const router = useRouter()
-  const { sessao, dados, erro: erroSessao, recarregar } = useDadosDaSessao()
-  const remocoesPendentes = useRef(new Set<string>())
-  const [remocao, setRemocao] = useState<{ sessao: SessaoLocal; contaId: string | null; erro: string | null } | null>(null)
-  const remocaoAtual = remocao?.sessao === sessao ? remocao : null
-  const removendoId = remocaoAtual?.contaId ?? null
-  const erro = erroSessao ?? remocaoAtual?.erro
-
-  const handleRemoverConta = async (id: string) => {
-    const usuarioId = sessao.usuarioId
-    if (!usuarioId || removendoId || remocoesPendentes.current.has(usuarioId)
-      || !dados?.contas.some((conta) => conta.id === id) || obterSessaoLocal() !== sessao) return
-
-    remocoesPendentes.current.add(usuarioId)
-    setRemocao({ sessao, contaId: id, erro: null })
-    try {
-      await removerConta(id)
-      if (obterSessaoLocal() === sessao) {
-        setRemocao(null)
-        recarregar()
-      }
-    } catch (error) {
-      if (obterSessaoLocal() === sessao) {
-        const mensagem = error instanceof Error ? error.message : "Não foi possível remover a conta selecionada."
-        setRemocao({ sessao, contaId: null, erro: mensagem })
-      }
-    } finally {
-      remocoesPendentes.current.delete(usuarioId)
-    }
-  }
+  const { dados, erro, recarregar } = useDadosDaSessao()
 
   const formatarSaldo = (saldo: number) =>
     saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -67,9 +36,9 @@ export default function MinhasContasBancarias() {
           </div>
         )}
 
-        {erroSessao && <BotaoGrande text="Tentar novamente" onClick={recarregar} />}
+        {erro && <BotaoGrande text="Tentar novamente" onClick={recarregar} />}
 
-        {!dados && !erroSessao ? (
+        {!dados && !erro ? (
           <div role="status" aria-label="Carregando suas contas" className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4F46E5]"></div>
           </div>
@@ -137,16 +106,12 @@ export default function MinhasContasBancarias() {
                       {/* Botão para Deletar a Conta */}
                       <button
                         type="button"
-                        onClick={() => handleRemoverConta(conta.id)}
-                        disabled={removendoId !== null}
-                        aria-busy={removendoId === conta.id}
+                        onClick={() => router.push(`/login/tela-remover-conta?contaId=${encodeURIComponent(conta.id)}&origem=lista`)}
                         aria-label="Remover conta"
                         className="p-2 text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
                         title="Remover conta"
                       >
-                        {removendoId === conta.id
-                          ? <LoaderCircle className="w-4 h-4 animate-spin" aria-hidden="true" />
-                          : <Trash2 className="w-4 h-4" aria-hidden="true" />}
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -165,7 +130,7 @@ export default function MinhasContasBancarias() {
                       bgClass="bg-[#EEF2FF] hover:bg-[#E0E7FF]"
                       textClass="text-[#4F46E5] font-semibold text-sm"
                       widthClass="w-full"
-                      onClick={() => router.push(`/conta/editar/${conta.id}`)}
+                      onClick={() => router.push(`/login/tela-perfil?contaId=${encodeURIComponent(conta.id)}`)}
                     />
                   </div>
                 </div>
