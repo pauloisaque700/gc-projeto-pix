@@ -1,148 +1,147 @@
-'use client';
+"use client";
 
-import React, { useState, useRef } from 'react';
-import Tela from '../../..//components/Tela';
-import SmartphoneHeader from '../../../components/SmartphoneHeader';
-import CardTransferencias from '../../../components/CardTransferencias'; 
-import { Calendar } from 'lucide-react';
+import { useEffect, useMemo, useState } from "react";
+import Tela from "../../../components/Tela";
+import SmartphoneHeader from "../../../components/SmartphoneHeader";
+import CardTransferencias from "../../../components/CardTransferencias";
+import { listarExtratoPix, type TransferenciaPix } from "../../../lib/api";
+import { formatarDataPix, formatarMoeda, pixMaisRecentes, rotuloConta } from "../../../lib/pix";
+import { obterSessaoLocal, type SessaoLocal } from "../../../lib/session";
+import { useDadosDaSessao, type DadosDaSessao } from "../../../lib/use-dados-da-sessao";
 
-// 1. Dados estruturados com um campo 'dateISO' padronizado para comparação real
-const listaTransacoes = [
-  { 
-    id: '1', 
-    title: 'PIX enviado', 
-    description: 'Maria Silva', 
-    amount: -150.00, 
-    date: 'Hoje',
-    dateISO: '2026-09-18' // Exemplo baseado no dia atual
-  },
-  { 
-    id: '2', 
-    title: 'PIX recebido', 
-    description: 'Carlos Souza', 
-    amount: 500.00, 
-    date: 'Ontem',
-    dateISO: '2026-09-17'
-  },
-  { 
-    id: '3', 
-    title: 'Pagamento', 
-    description: 'Conta de luz', 
-    amount: -230.00, 
-    date: '20/08',
-    dateISO: '2026-08-20'
-  },
-];
+type ResultadoRelatorio = { itens: TransferenciaPix[]; erro: null } | { itens: null; erro: string };
+
+function diaLocal(instante: string) {
+  const data = new Date(instante);
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+  return `${data.getFullYear()}-${mes}-${dia}`;
+}
 
 export default function TransacoesPage() {
-  const [dataInicial, setDataInicial] = useState<string>('');
-  const [dataFinal, setDataFinal] = useState<string>('');
-
-  const inputInicialRef = useRef<HTMLInputElement>(null);
-  const inputFinalRef = useRef<HTMLInputElement>(null);
-
-  const formatarDataBR = (dataString: string) => {
-    if (!dataString) return '';
-    const [ano, mes, dia] = dataString.split('-');
-    return `${dia}/${mes}/${ano}`;
-  };
-
-  // 2. Lógica de Filtragem Dinâmica
-  const transacoesFiltradas = listaTransacoes.filter((transacao) => {
-    // Se nenhuma data foi escolhida, exibe a lista inteira
-    if (!dataInicial && !dataFinal) return true;
-
-    const dataItem = transacao.dateISO;
-
-    // Se houver data inicial, o item deve ser igual ou posterior a ela
-    if (dataInicial && dataItem < dataInicial) {
-      return false;
-    }
-
-    // Se houver data final, o item deve ser igual ou anterior a ela
-    if (dataFinal && dataItem > dataFinal) {
-      return false;
-    }
-
-    return true;
-  });
+  const { sessao, dados, erro, recarregar } = useDadosDaSessao();
 
   return (
     <Tela>
-      <SmartphoneHeader 
-        title="Transações do Usuário" 
-        backToUrl="/conta/minhas-contas-bancarias"
-      />
-
-      {/* Seção Filtros */}
-      <section className="w-full">
-        <p className="text-sm font-semibold text-[#475569] mb-3">
-          Filtrar por:
-        </p>
-
-        <div className="flex gap-2 justify-start mb-6">
-          {/* BOX DATA INICIAL */}
-          <div 
-            onClick={() => inputInicialRef.current?.showPicker()}
-            className="inline-flex items-center justify-center bg-[#4f46e5] border border-[#4f46e5] rounded-xl px-3 py-2 cursor-pointer transition-colors hover:bg-[#4338ca]"
-          >
-            <input
-              ref={inputInicialRef}
-              type="date"
-              value={dataInicial}
-              onChange={(e) => setDataInicial(e.target.value)}
-              className="absolute opacity-0 w-0 h-0 pointer-events-none"
-            />
-            <div className="flex items-center gap-1.5">
-              {!dataInicial && <Calendar className="w-4 h-4 text-white stroke-[2.5]" />}
-              <span className="text-xs font-medium text-white">
-                {dataInicial ? formatarDataBR(dataInicial) : 'Data Inicial'}
-              </span>
-            </div>
-          </div>
-
-          {/* BOX DATA FINAL */}
-          <div 
-            onClick={() => inputFinalRef.current?.showPicker()}
-            className="inline-flex items-center justify-center bg-[#4f46e5] border border-[#4f46e5] rounded-xl px-3 py-2 cursor-pointer transition-colors hover:bg-[#4338ca]"
-          >
-            <input
-              ref={inputFinalRef}
-              type="date"
-              value={dataFinal}
-              onChange={(e) => setDataFinal(e.target.value)}
-              className="absolute opacity-0 w-0 h-0 pointer-events-none"
-            />
-            <div className="flex items-center gap-1.5">
-              {!dataFinal && <Calendar className="w-4 h-4 text-white stroke-[2.5]" />}
-              <span className="text-xs font-medium text-white">
-                {dataFinal ? formatarDataBR(dataFinal) : 'Data final'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. Renderiza a lista filtrada ou uma mensagem caso esteja vazia */}
-      <section className="flex-1 flex flex-col w-full mt-2">
-        {transacoesFiltradas.length > 0 ? (
-          transacoesFiltradas.map((transacao) => (
-            <CardTransferencias
-              key={transacao.id}
-              title={transacao.title}
-              description={transacao.description}
-              amount={transacao.amount}
-              date={transacao.date}
-            />
-          ))
-        ) : (
-          <div className="py-10 text-center">
-            <p className="text-sm font-medium text-slate-400">
-              Nenhuma transação encontrada para este período.
-            </p>
-          </div>
-        )}
-      </section>
+      <SmartphoneHeader title="Relatório de transações PIX" backToUrl="/conta/minhas-contas-bancarias" />
+      {!dados && !erro && <p role="status">Carregando suas contas...</p>}
+      {erro && <FalhaRelatorio mensagem={erro} recarregar={recarregar} />}
+      {dados && <RelatorioPix key={sessao.versao} dados={dados} sessao={sessao} recarregar={recarregar} />}
     </Tela>
+  );
+}
+
+function FalhaRelatorio({ mensagem, recarregar }: { mensagem: string; recarregar: () => void }) {
+  return (
+    <>
+      <p role="alert" className="text-sm text-red-600">{mensagem}</p>
+      <button type="button" className="mt-3 text-sm font-semibold text-indigo-700" onClick={recarregar}>
+        Tentar novamente
+      </button>
+    </>
+  );
+}
+
+function RelatorioPix({ dados, sessao, recarregar }: {
+  dados: DadosDaSessao;
+  sessao: SessaoLocal;
+  recarregar: () => void;
+}) {
+  const contas = useMemo(() => dados.contas.filter((conta) => conta.usuarioId === dados.usuario.id), [dados]);
+  const [resultado, setResultado] = useState<ResultadoRelatorio | null>(null);
+  const [dataInicial, setDataInicial] = useState("");
+  const [dataFinal, setDataFinal] = useState("");
+
+  useEffect(() => {
+    if (!contas.length || obterSessaoLocal() !== sessao) return;
+    let ativo = true;
+    const sessaoValida = () => ativo && obterSessaoLocal() === sessao;
+
+    async function carregar() {
+      try {
+        const extratos = await Promise.all(contas.map(async (conta) => {
+          const itens = await listarExtratoPix(conta.id);
+          return itens.filter((item) => item.contaOrigemId === conta.id || item.contaDestinoId === conta.id);
+        }));
+        if (!sessaoValida()) return;
+        const porId = new Map(extratos.flat().map((item) => [item.id, item]));
+        setResultado({ itens: pixMaisRecentes([...porId.values()]), erro: null });
+      } catch (error) {
+        if (!sessaoValida()) return;
+        const mensagem = error instanceof Error ? error.message : "Não foi possível carregar o relatório PIX.";
+        setResultado({ itens: null, erro: mensagem });
+      }
+    }
+
+    void carregar();
+    return () => { ativo = false; };
+  }, [contas, sessao]);
+
+  if (contas.length === 0) return <p className="text-sm text-slate-600">Você ainda não possui conta bancária.</p>;
+  if (!resultado) return <p role="status">Carregando transações PIX...</p>;
+  if (resultado.erro !== null) return <FalhaRelatorio mensagem={resultado.erro} recarregar={recarregar} />;
+
+  const contasPorId = new Map(contas.map((conta) => [conta.id, conta]));
+  const periodoInvalido = Boolean(dataInicial && dataFinal && dataInicial > dataFinal);
+  const itens = resultado.itens.filter((item) => {
+    const dia = diaLocal(item.realizadaEm);
+    return (!dataInicial || dia >= dataInicial) && (!dataFinal || dia <= dataFinal);
+  });
+
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap gap-3 text-sm">
+        <label className="flex flex-col gap-1">
+          Data inicial
+          <input type="date" value={dataInicial} onChange={(event) => setDataInicial(event.target.value)}
+            className="rounded-lg border border-slate-200 p-2" />
+        </label>
+        <label className="flex flex-col gap-1">
+          Data final
+          <input type="date" value={dataFinal} onChange={(event) => setDataFinal(event.target.value)}
+            className="rounded-lg border border-slate-200 p-2" />
+        </label>
+      </div>
+      {periodoInvalido ? (
+        <p role="alert" className="text-sm text-red-600">A data inicial deve ser anterior ou igual à data final.</p>
+      ) : (
+        <section className="flex-1 flex flex-col w-full mt-2">
+          {itens.length === 0 && <p className="text-sm text-slate-600">Nenhum PIX encontrado nesse período.</p>}
+          {itens.map((item) => {
+            const origem = contasPorId.get(item.contaOrigemId ?? "");
+            const destino = contasPorId.get(item.contaDestinoId);
+            const data = formatarDataPix(item.realizadaEm);
+
+            if (origem && destino) {
+              return (
+                <div key={item.id} className="flex justify-between gap-3 border-b border-slate-200 py-4 text-sm">
+                  <div>
+                    <p className="font-semibold text-slate-900">PIX entre suas contas</p>
+                    <p className="text-xs text-slate-600">De {rotuloConta(origem)} para {rotuloConta(destino)}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-semibold text-slate-900">{formatarMoeda(item.valor)}</p>
+                    <time dateTime={item.realizadaEm} className="text-xs text-slate-500">{data}</time>
+                  </div>
+                </div>
+              );
+            }
+
+            const conta = destino ?? origem;
+            if (!conta) return null;
+            const contraparte = item.origemExterna ?? item.chaveDestinoUtilizada;
+            return (
+              <CardTransferencias
+                key={item.id}
+                title={destino ? "PIX recebido" : "PIX enviado"}
+                description={`${rotuloConta(conta)} · ${contraparte}`}
+                amount={destino ? item.valor : -item.valor}
+                date={data}
+              />
+            );
+          })}
+        </section>
+      )}
+    </>
   );
 }

@@ -68,6 +68,19 @@ export default function TransferirPix() {
   return (
     <Tela>
       <SmartphoneHeader title="TRANSFERIR PIX" backToUrl="/tela-principal" />
+      <Card paddingClass="p-5">
+        {!dados && !erroSessao && <p role="status">Carregando suas contas...</p>}
+        {erroSessao && (
+          <>
+            <p role="alert" className="text-sm text-red-600">{erroSessao}</p>
+            <button type="button" className="text-sm text-indigo-700" onClick={recarregar}>Tentar novamente</button>
+          </>
+        )}
+        {dados && <FormularioPix key={sessao.versao} dados={dados} sessao={sessao} />}
+      </Card>
+    </Tela>
+  );
+}
 
       <Card paddingClass="p-5" bgClass="bg-white">
         <div className="flex flex-col gap-5">
@@ -191,19 +204,62 @@ export default function TransferirPix() {
               Cancelar
             </button>
 
-            <BotaoGrande 
-              text="Continuar" 
-              bgClass="bg-[#4F46E5] hover:bg-[#4338CA]" 
-              textClass="text-white font-semibold text-base"       
-              widthClass="w-full"                        
-              isLoading={loading} 
-              disabled={!chaveDestinatario || !valorTransferencia || loading} 
-              onClick={handleContinuar}
-            />
-          </div>
+  if (contasAtivas.length === 0) {
+    return (
+      <p className="text-sm text-slate-700">
+        Você precisa de uma conta ativa para transferir.{" "}
+        <Link href="/conta/minhas-contas-bancarias" className="font-semibold text-indigo-700">Minhas Contas</Link>
+      </p>
+    );
+  }
 
-        </div>
-      </Card>
-    </Tela>
+  return (
+    <form onSubmit={continuar} className="flex flex-col gap-5">
+      <div className="flex flex-col gap-2">
+        <label htmlFor="conta-origem" className="text-sm font-semibold text-slate-700">Origem da transferência</label>
+        <select
+          id="conta-origem"
+          value={contaOrigem?.id ?? ""}
+          onChange={(event) => setContaId(event.target.value)}
+          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800"
+        >
+          <option value="">Selecione uma conta</option>
+          {contasAtivas.map((conta) => <option key={conta.id} value={conta.id}>{rotuloConta(conta)}</option>)}
+        </select>
+        {contaOrigem && (
+          <p className="text-xs text-slate-600">
+            Saldo disponível {formatarMoeda(contaOrigem.saldo)} · Limite diário {formatarMoeda(contaOrigem.limiteDiario)}
+          </p>
+        )}
+      </div>
+      <Input
+        label="Chave PIX do destinatário"
+        placeholder="E-mail, CPF, CNPJ, celular ou chave aleatória"
+        icon={<Search className="h-5 w-5" />}
+        value={chaveDestino}
+        onChange={(event) => setChaveDestino(event.target.value)}
+      />
+      <Input
+        label="Quanto deseja transferir?"
+        placeholder="0,00"
+        icon={<DollarSign className="h-5 w-5" />}
+        value={valorTexto}
+        onChange={(event) => setValorTexto(event.target.value)}
+      />
+      <p className="text-xs text-slate-600">A API oferece PIX imediato. Agendamento está indisponível.</p>
+      {erro && <p role="alert" className="text-sm text-red-600">{erro}</p>}
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/tela-principal" className="rounded-xl border border-slate-200 py-4 text-center text-sm font-semibold text-slate-600">
+          Cancelar
+        </Link>
+        <button
+          type="submit"
+          disabled={!contaOrigem || !chaveDestino.trim() || !valorTexto.trim()}
+          className="rounded-xl bg-indigo-600 py-4 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+        >
+          Continuar
+        </button>
+      </div>
+    </form>
   );
 }

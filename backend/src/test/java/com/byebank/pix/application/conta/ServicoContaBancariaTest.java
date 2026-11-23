@@ -1,6 +1,7 @@
 package com.byebank.pix.application.conta;
 
 import com.byebank.pix.application.comum.RecursoNaoEncontradoException;
+import com.byebank.pix.application.comum.RegraDeNegocioException;
 import com.byebank.pix.application.pix.AssociarChavePixCommand;
 import com.byebank.pix.application.pix.ReceberPixExternoCommand;
 import com.byebank.pix.application.pix.ServicoChavePix;
@@ -97,10 +98,20 @@ class ServicoContaBancariaTest {
         ContaBancaria conta = criarConta();
         String numeroAnterior = conta.getNumero();
 
-        servicoConta.atualizar(conta.getId(), new AtualizacaoContaBancariaCommand("0002", numeroAnterior));
+        servicoConta.atualizar(conta.getId(), new AtualizacaoContaBancariaCommand("0002", null));
 
         assertFalse(repositorioConta.existePorAgenciaENumero("0001", numeroAnterior));
         assertTrue(repositorioConta.existePorAgenciaENumero("0002", numeroAnterior));
+    }
+
+    @Test
+    void deveRejeitarAgenciaQueJaPossuiOMesmoNumero() {
+        ContaBancaria conta = criarConta();
+        repositorioConta.salvar(ContaBancaria.criar(titular.getId(), "0002", conta.getNumero()));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> servicoConta.atualizar(conta.getId(), new AtualizacaoContaBancariaCommand("0002", null)));
+        assertEquals("0001", conta.getAgencia());
     }
 
     @Test
