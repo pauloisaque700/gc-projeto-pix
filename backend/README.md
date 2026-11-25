@@ -1,30 +1,36 @@
 # Backend - Projeto PIX
 
-Este é o backend do Projeto PIX. A API usa Java 21 e Spring Boot. Por enquanto, os dados ficam em memória.
+API REST do Projeto PIX, construída com Java 21 e Spring Boot. O perfil `mysql` grava usuários, contas, chaves e transferências no banco. O perfil `memoria` roda a mesma API sem MySQL.
 
 ## Executar
 
 ### Com conexão MySQL
 
-Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot:run` a partir de `backend`. No PowerShell, use `.\mvnw.cmd spring-boot:run`.
+Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot:run -Dspring-boot.run.profiles=mysql` a partir de `backend`. No PowerShell, use `.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=mysql`.
 
 | Variável | Valor esperado |
 | --- | --- |
-| `SPRING_DATASOURCE_URL` | URL JDBC do banco `byebank_db`, por exemplo `jdbc:mysql://<host-mysql>:3306/byebank_db`. Em Docker, use o nome real do serviço MySQL como host. |
+| `SPRING_DATASOURCE_URL` | URL JDBC do banco `byebank_db`. Para o MySQL local do Compose, use `jdbc:mysql://127.0.0.1:3306/byebank_db?serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false` com a porta publicada. Dentro do Docker, use `mysql:3306`. |
 | `SPRING_DATASOURCE_USERNAME` | Usuário MySQL configurado para a aplicação. |
 | `SPRING_DATASOURCE_PASSWORD` | Senha desse usuário. |
 
-Para usar a conexão JDBC, suba o MySQL antes do backend. O Hibernate usa UTC nas datas e horas que passam por essa conexão. As operações da API continuam em memória. Para gravar os dados no MySQL, ainda faltam os repositórios JPA.
+Suba o MySQL e aplique `init.sql` antes de iniciar o backend fora do Docker. Os repositórios usam JDBC e gravam datas e horas em UTC.
 
-O `init.sql` da raiz cria as tabelas no MySQL 8.0.16 ou superior. Para ligar o MySQL ao Docker Compose, ainda faltam o serviço do banco, um volume para os dados e as credenciais por variáveis de ambiente. Monte o script em `/docker-entrypoint-initdb.d/`. Use um `healthcheck` no banco e configure o backend para esperar o banco ficar pronto. A imagem oficial roda o script na primeira vez que sobe com o volume vazio. [Documentação da imagem oficial do MySQL](https://hub.docker.com/_/mysql)
+Com Docker Compose, rode `docker compose up --build` na raiz do projeto. O backend ativa `mysql` por padrão, usa `mysql:3306` na rede interna e espera o MySQL aceitar uma consulta com o usuário da aplicação antes de iniciar. Para acessar o banco a partir da máquina local, use `127.0.0.1` e a porta `MYSQL_PORT` (padrão `3306`).
+
+O `init.sql` da raiz cria o banco `byebank_db`. A imagem MySQL 8.4 roda esse script na primeira inicialização do volume `mysql-data`. Em um volume existente, editar o SQL ou trocar as variáveis de credenciais não reaplica a inicialização. [Documentação da imagem oficial do MySQL](https://hub.docker.com/_/mysql)
 
 ### Em memória, sem MySQL
 
-Use o perfil `memoria` para rodar e testar a API sem subir o MySQL. Para rodar com MySQL no Docker, use a configuração JDBC acima e deixe esse perfil desativado.
+Use o perfil `memoria` para executar ou testar a API sem um servidor MySQL. Use `mysql` e `memoria` separadamente.
 
 ```bash
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=memoria
 ```
+
+### Testes com MySQL real
+
+Prepare um banco de teste vazio com `init.sql`. Defina `BYEBANK_TEST_MYSQL_URL`, `BYEBANK_TEST_MYSQL_USER` e `BYEBANK_TEST_MYSQL_PASSWORD` para essa instância e rode `./mvnw test`. Os testes de integração criam dados e reiniciam o contexto do Spring. O CI sobe apenas o serviço MySQL do Compose para rodar essa suíte junto com os testes em memória. Sem a URL de teste, o Maven executa só os testes em memória.
 
 ## Identidade e autorização
 
@@ -51,7 +57,7 @@ Exemplo de cadastro:
 }
 ```
 
-Ao cadastrar ou atualizar um usuário, a API tira os espaços do começo e do fim do e-mail e coloca tudo em minúsculas. O esquema do MySQL usa `utf8mb4_bin`, exige e-mails em minúsculas e barra e-mails repetidos. Quando os repositórios JPA forem implementados, eles devem salvar o e-mail já tratado. Em memória, só o documento é conferido para evitar cadastros repetidos.
+No cadastro e na atualização, o backend remove espaços no início e no fim do e-mail e converte o valor para minúsculas. O repositório JDBC grava o e-mail normalizado, e o MySQL garante que ele seja único. O repositório em memória verifica duplicidade apenas por documento.
 
 ## API de contas bancárias
 
@@ -59,7 +65,7 @@ Ao cadastrar ou atualizar um usuário, a API tira os espaços do começo e do fi
 | --- | --- | --- |
 | `POST` | `/api/contas` | Cria uma conta para um usuário existente. |
 | `GET` | `/api/contas/{id}` | Consulta uma conta. |
-| `PUT` | `/api/contas/{id}` | Atualiza a agência. Se informado, `numero` deve ser igual ao número atual. |
+| `PUT` | `/api/contas/{id}` | Atualiza agência e número. |
 | `DELETE` | `/api/contas/{id}` | Remove uma conta. |
 | `GET` | `/api/usuarios/{usuarioId}/contas` | Lista as contas de um usuário. |
 
@@ -73,25 +79,40 @@ Exemplo de criação de conta:
 }
 ```
 
-Cada conta começa com saldo `0.00` e recebe um número aleatório de seis dígitos. Esse número não pode se repetir na mesma agência. O que acontece ao apagar uma conta ou um usuário está na seção [Cascade de remoção](#cascade-de-remoção).
+Cada conta recebe um número aleatório de seis dígitos, único na agência, e inicia com saldo `0.00`. As regras de exclusão variam conforme o perfil. [Cascade de remoção](#cascade-de-remoção)
 
 ## Atomicidade do PIX
 
-Se der erro no meio do PIX, o Java desfaz as mudanças nos saldos e apaga o registro da transferência se ele chegou a ser salvo. Por exemplo, se a conta de destino estiver bloqueada, o PIX falha e o dinheiro fica na conta de origem.
+No perfil `memoria`, erros durante o PIX restauram os saldos e removem o registro da transferência se ele tiver sido inserido. Os bloqueios em ordem estável também impedem que envios concorrentes consumam o mesmo saldo ou excedam o limite diário.
 
-A mesma regra vale para o recebimento de PIX externo. Esse controle funciona em memória, dentro de uma instância da aplicação.
+No perfil `mysql`, débito, crédito e registro do PIX fazem parte da mesma transação. O MySQL bloqueia as contas com `SELECT ... FOR UPDATE` em ordem de UUID. A transação usa `READ COMMITTED` para conferir o saldo e o total do dia após obter os bloqueios. Se alguma etapa falhar, a transação desfaz a operação inteira.
+
+O extrato lê os PIX concluídos em que a conta aparece como origem ou destino. Chaves suspensas continuam guardadas e ficam indisponíveis para receber PIX. Edição e desbloqueio de chaves seguem sem rotas na API atual.
 
 ## Cascade de remoção
 
-### Comportamento atual da API em memória
+### Comportamento em memória
 
-- `DELETE /api/contas/{id}` apaga primeiro os PIX que a conta enviou ou recebeu. Depois, apaga as chaves PIX e a própria conta.
-- `DELETE /api/usuarios/{id}` remove todas as contas do usuário da mesma forma. Depois, apaga o usuário e devolve `204`.
-- Apagar a conta não devolve o dinheiro de PIX já feitos. O PIX some do extrato da outra conta, mas o saldo dela continua igual.
+- `DELETE /api/contas/{id}` remove as transferências PIX associadas, depois as chaves PIX e a conta.
+- `DELETE /api/usuarios/{id}` remove as contas do usuário da mesma forma e, por fim, o cadastro.
+- A remoção não estorna valores: o PIX removido some do extrato da outra conta, mas o saldo dela permanece igual.
+
+### Política no esquema MySQL
+
+O encerramento é lógico. O usuário pode ser marcado como `ENCERRADO` e a conta como `ENCERRADA`, mantendo os registros e vínculos financeiros. Encerrar um usuário preserva as contas e os vínculos de cotitularidade existentes. O esquema impede novos vínculos de titularidade ou cotitularidade com usuários encerrados e novos cotitulares em contas encerradas.
+
+Ao encerrar uma conta, o banco suspende suas chaves PIX ativas. O esquema bloqueia alterações de saldo durante e após o encerramento, impede a reativação da conta e rejeita a ativação de chaves ou novos PIX pendentes e concluídos nessas contas. As chaves estrangeiras restringem a exclusão física de usuários, contas e transferências com vínculos protegidos, preservando o histórico financeiro e os logs de login.
+
+### Comportamento atual da API
+
+Os endpoints `DELETE` removem os registros fisicamente. No perfil `mysql`, uma conta com transferências registradas fica protegida contra exclusão. Se houver histórico de PIX ou outra chave estrangeira impedir a remoção, a API devolve `422` e desfaz as exclusões da mesma operação. O encerramento lógico ainda não faz parte do fluxo da API.
+
+- `DELETE /api/contas/{id}` remove as chaves e depois a conta. Em `memoria`, também remove as transferências associadas antes da conta.
+- `DELETE /api/usuarios/{id}` remove as contas do usuário e depois o cadastro. Uma remoção bem-sucedida retorna `204`.
 
 ## Organização
 
-- `domain` reúne as classes e regras de usuários, contas e PIX.
-- `application` reúne os serviços que executam as operações.
-- `api` reúne as rotas HTTP e os dados que elas recebem e devolvem.
-- `infrastructure` contém os repositórios em memória.
+- `domain`: entidades, objetos de valor e contratos do domínio;
+- `application`: casos de uso e regras de orquestração;
+- `api`: controllers, requests, responses e erros HTTP;
+- `infrastructure`: repositórios em memória e repositórios JDBC de usuários, contas, chaves e transferências.

@@ -49,6 +49,13 @@ public final class ContaBancaria {
                 tipoConta, Dinheiro.de(new BigDecimal("1000.00")), null, StatusConta.ATIVA, agora, agora);
     }
 
+    public static ContaBancaria reconstituir(UUID id, UUID usuarioId, String agencia, String numero, Dinheiro saldo,
+                                           TipoConta tipoConta, Dinheiro limiteDiario, CanalNotificacao notificacao,
+                                           StatusConta status, Instant criadaEm, Instant atualizadaEm) {
+        return new ContaBancaria(id, usuarioId, agencia, numero, saldo, tipoConta, limiteDiario, notificacao,
+                status, criadaEm, atualizadaEm);
+    }
+
     public synchronized void definirLimiteDiario(Dinheiro novoLimite) {
         this.limiteDiario = validarLimiteDiario(novoLimite);
         this.atualizadaEm = Instant.now();
@@ -103,13 +110,6 @@ public final class ContaBancaria {
         return saldo.ehMaiorOuIgualA(valor);
     }
 
-    public synchronized void garantirContaAtiva() {
-        if (status == StatusConta.BLOQUEADA) {
-            throw new IllegalStateException("Conta bloqueada: não é possível realizar a operação.");
-        }
-    }
-
-    /** Mantém o bloqueio da conta e restaura seu estado financeiro se a operação falhar. */
     public synchronized <T> T executarComRollbackFinanceiro(Supplier<T> operacao) {
         Dinheiro saldoAnterior = saldo;
         Instant atualizacaoAnterior = atualizadaEm;
@@ -119,6 +119,12 @@ public final class ContaBancaria {
             saldo = saldoAnterior;
             atualizadaEm = atualizacaoAnterior;
             throw falha;
+        }
+    }
+
+    public synchronized void garantirContaAtiva() {
+        if (status == StatusConta.BLOQUEADA) {
+            throw new IllegalStateException("Conta bloqueada: não é possível realizar a operação.");
         }
     }
 

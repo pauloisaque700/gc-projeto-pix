@@ -30,6 +30,11 @@ public final class Usuario {
         return new Usuario(UUID.randomUUID(), nomeCompleto, documento, email, telefone, agora, agora);
     }
 
+    public static Usuario reconstituir(UUID id, String nomeCompleto, Documento documento, Email email,
+                                       Telefone telefone, Instant criadoEm, Instant atualizadoEm) {
+        return new Usuario(id, nomeCompleto, documento, email, telefone, criadoEm, atualizadoEm);
+    }
+
     public void atualizarDados(String nomeCompleto, Email email, Telefone telefone) {
         this.nomeCompleto = validarNome(nomeCompleto);
         this.email = Objects.requireNonNull(email, "O e-mail é obrigatório.");

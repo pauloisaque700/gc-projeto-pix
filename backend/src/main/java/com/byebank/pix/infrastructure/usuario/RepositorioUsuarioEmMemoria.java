@@ -3,6 +3,7 @@ package com.byebank.pix.infrastructure.usuario;
 import com.byebank.pix.domain.usuario.Documento;
 import com.byebank.pix.domain.usuario.RepositorioUsuario;
 import com.byebank.pix.domain.usuario.Usuario;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** Implementação temporária enquanto o projeto ainda não usa banco de dados. */
 @Repository
+@Profile("!mysql")
 public class RepositorioUsuarioEmMemoria implements RepositorioUsuario {
     private final Map<UUID, Usuario> usuariosPorId = new ConcurrentHashMap<>();
     private final Map<Documento, UUID> idsPorDocumento = new ConcurrentHashMap<>();

@@ -2,6 +2,7 @@ package com.byebank.pix.infrastructure.pix;
 
 import com.byebank.pix.domain.pix.ChavePix;
 import com.byebank.pix.domain.pix.RepositorioChavePix;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
+@Profile("!mysql")
 public class RepositorioChavePixEmMemoria implements RepositorioChavePix {
     private final Map<UUID, ChavePix> chavesPorId = new ConcurrentHashMap<>();
     private final Map<String, UUID> idsPorValor = new ConcurrentHashMap<>();

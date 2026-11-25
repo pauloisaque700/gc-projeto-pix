@@ -42,10 +42,12 @@ export default function AdicionarChavePix() {
       <SmartphoneHeader title="Adicionar Chave PIX" backToUrl="/pix/minhas-chaves-pix" />
       <Card>
         {!dados && !erro && <p role="status">Carregando suas contas...</p>}
-        {erro && <>
-          <p role="alert" className="text-sm text-red-600">{erro}</p>
-          <button type="button" className={estiloBotao} onClick={recarregar}>Tentar novamente</button>
-        </>}
+        {erro && (
+          <>
+            <p role="alert" className="text-sm text-red-600">{erro}</p>
+            <button type="button" className={estiloBotao} onClick={recarregar}>Tentar novamente</button>
+          </>
+        )}
         {dados && contas.length === 0 && (
           <p className="text-sm text-slate-700">
             Você precisa de uma conta bancária para cadastrar uma chave PIX.{" "}
@@ -54,13 +56,15 @@ export default function AdicionarChavePix() {
             </Link>
           </p>
         )}
-        {contas.length > 0 && <FormularioChavePix key={sessao.versao} sessao={sessao} contas={contas} />}
+        {contas.length > 0 && (
+          <FormularioChave key={sessao.versao} sessao={sessao} contas={contas} />
+        )}
       </Card>
     </Tela>
   );
 }
 
-function FormularioChavePix({ sessao, contas }: { sessao: SessaoLocal; contas: Conta[] }) {
+function FormularioChave({ contas, sessao }: { contas: Conta[]; sessao: SessaoLocal }) {
   const [contaId, setContaId] = useState(contas.length === 1 ? contas[0].id : "");
   const [tipo, setTipo] = useState<TipoChavePix>("EMAIL");
   const [valor, setValor] = useState("");
@@ -70,38 +74,38 @@ function FormularioChavePix({ sessao, contas }: { sessao: SessaoLocal; contas: C
 
   async function cadastrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const sessaoValida = () => obterSessaoLocal() === sessao;
-    if (enviando || !sessaoValida() || !contas.some((conta) => conta.id === contaId)) return;
+    if (enviando || obterSessaoLocal() !== sessao || !contas.some((conta) => conta.id === contaId)) return;
 
     setErro(null);
     setEnviando(true);
     try {
-      let chave: ChavePixResponse;
       if (tipo === "ALEATORIA") {
-        chave = await gerarChavePixAleatoria(contaId);
-      } else {
-        const validacao = await validarChavePix({ tipo, valor: valor.trim() });
-        if (!sessaoValida()) return;
-        if (!validacao.valida) {
-          setErro("O valor informado é inválido para o tipo de chave selecionado.");
-          return;
-        }
-        if (!validacao.disponivelParaAssociacao) {
-          setErro("Esta chave PIX já está cadastrada.");
-          return;
-        }
-
-        chave = await associarChavePix({ contaId, tipo, valor: validacao.valorNormalizado });
+        const criada = await gerarChavePixAleatoria(contaId);
+        if (obterSessaoLocal() === sessao) setChaveCriada(criada);
+        return;
       }
-      if (sessaoValida()) setChaveCriada(chave);
+
+      const validacao = await validarChavePix({ tipo, valor: valor.trim() });
+      if (obterSessaoLocal() !== sessao) return;
+      if (!validacao.valida) {
+        setErro("O valor informado é inválido para o tipo de chave selecionado.");
+        return;
+      }
+      if (!validacao.disponivelParaAssociacao) {
+        setErro("Esta chave PIX já está cadastrada.");
+        return;
+      }
+
+      const criada = await associarChavePix({ contaId, tipo, valor: validacao.valorNormalizado });
+      if (obterSessaoLocal() === sessao) setChaveCriada(criada);
     } catch (error) {
-      if (!sessaoValida()) return;
+      if (obterSessaoLocal() !== sessao) return;
       const mensagem = error instanceof ApiError
         ? Object.values(error.campos)[0] ?? error.message
         : error instanceof Error ? error.message : "Não foi possível cadastrar a chave PIX.";
       setErro(mensagem);
     } finally {
-      if (sessaoValida()) setEnviando(false);
+      if (obterSessaoLocal() === sessao) setEnviando(false);
     }
   }
 

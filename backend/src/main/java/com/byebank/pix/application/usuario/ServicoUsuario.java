@@ -10,7 +10,9 @@ import com.byebank.pix.domain.usuario.RepositorioUsuario;
 import com.byebank.pix.domain.usuario.Telefone;
 import com.byebank.pix.domain.usuario.Usuario;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.UUID;
 
 @Service
@@ -35,7 +37,7 @@ public class ServicoUsuario {
                 Email.criar(comando.email()),
                 Telefone.criar(comando.telefone())
         );
-        return repositorioUsuario.salvar(usuario);
+        return repositorioUsuario.inserir(usuario);
     }
 
     public Usuario buscarPorId(UUID id) {
@@ -54,9 +56,12 @@ public class ServicoUsuario {
     }
 
     /** Remove o usuário em cascata: cada conta (com seu próprio cascade) e só depois o usuário. */
+    @Transactional
     public void remover(UUID id) {
         Usuario usuario = buscarPorId(id);
-        for (ContaBancaria conta : servicoConta.listarPorUsuario(usuario.getId())) {
+        var contas = servicoConta.listarPorUsuario(usuario.getId()).stream()
+                .sorted(Comparator.comparing(ContaBancaria::getId)).toList();
+        for (ContaBancaria conta : contas) {
             servicoConta.remover(conta.getId());
         }
         repositorioUsuario.remover(usuario);

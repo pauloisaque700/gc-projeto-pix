@@ -35,9 +35,9 @@ export default function MinhasContasBancarias() {
             <p className="text-xs text-red-600 leading-relaxed">{erro}</p>
           </div>
         )}
-
         {erro && <BotaoGrande text="Tentar novamente" onClick={recarregar} />}
 
+        {/* Indicador de Carregamento */}
         {!dados && !erro ? (
           <div role="status" aria-label="Carregando suas contas" className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4F46E5]"></div>
@@ -152,7 +152,7 @@ export default function MinhasContasBancarias() {
           />
 
           <BotaoGrande
-            text="Relatório de transações PIX"
+            text="Gerar Relatório de Transações do Usuário"
             bgClass="bg-transparent hover:bg-slate-50/50"
             borderClass="border-2 border-dashed border-[#4F46E5]/50"
             textClass="text-[#4F46E5] font-semibold text-sm text-center"
@@ -161,7 +161,7 @@ export default function MinhasContasBancarias() {
           />
 
           <BotaoGrande
-            text="Histórico de logins"
+            text="Consultar histórico de Logins"
             bgClass="bg-transparent hover:bg-slate-50/50"
             borderClass="border-2 border-dashed border-[#4F46E5]/50"
             textClass="text-[#4F46E5] font-semibold text-sm text-center"
