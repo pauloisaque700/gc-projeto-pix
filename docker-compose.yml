@@ -25,6 +25,21 @@ services:
     networks:
       - pix-network
 
+  phpmyadmin:
+    image: phpmyadmin:5.2.2-apache
+    container_name: pix-phpmyadmin-${APP_ENV:-dev}
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "127.0.0.1:${PHPMYADMIN_PORT:-8081}:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - pix-network
+
   backend:
     image: ${BACKEND_IMAGE:-pix-backend:local}
     build:
