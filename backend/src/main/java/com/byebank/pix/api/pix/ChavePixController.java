@@ -5,6 +5,7 @@ import com.byebank.pix.application.pix.ServicoChavePix;
 import com.byebank.pix.domain.pix.ChavePix;
 import com.byebank.pix.domain.pix.TipoChavePix;
 import jakarta.validation.Valid;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
+@Profile("!mysql")
 @RequestMapping("/api")
 public class ChavePixController {
     private final ServicoChavePix servicoChave;

@@ -10,6 +10,7 @@ import com.byebank.pix.domain.pix.FabricaChavePix;
 import com.byebank.pix.domain.pix.RepositorioChavePix;
 import com.byebank.pix.domain.pix.RepositorioTransferenciaPix;
 import com.byebank.pix.domain.pix.TransferenciaPix;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@Profile("!mysql")
 public class ServicoTransferenciaPix {
     private static final ZoneId FUSO_OPERACIONAL = ZoneId.of("America/Sao_Paulo");
 

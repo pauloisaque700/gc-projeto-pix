@@ -2,6 +2,7 @@ package com.byebank.pix.infrastructure.conta;
 
 import com.byebank.pix.domain.conta.ContaBancaria;
 import com.byebank.pix.domain.conta.RepositorioContaBancaria;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** Implementação temporária enquanto não há banco de dados. */
 @Repository
+@Profile("!mysql")
 public class RepositorioContaBancariaEmMemoria implements RepositorioContaBancaria {
     private final Map<UUID, ContaBancaria> contasPorId = new ConcurrentHashMap<>();
 

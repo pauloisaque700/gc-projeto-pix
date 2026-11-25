@@ -48,6 +48,13 @@ public final class ContaBancaria {
                 tipoConta, Dinheiro.de(new BigDecimal("1000.00")), null, StatusConta.ATIVA, agora, agora);
     }
 
+    public static ContaBancaria reconstituir(UUID id, UUID usuarioId, String agencia, String numero, Dinheiro saldo,
+                                           TipoConta tipoConta, Dinheiro limiteDiario, CanalNotificacao notificacao,
+                                           StatusConta status, Instant criadaEm, Instant atualizadaEm) {
+        return new ContaBancaria(id, usuarioId, agencia, numero, saldo, tipoConta, limiteDiario, notificacao,
+                status, criadaEm, atualizadaEm);
+    }
+
     public synchronized void definirLimiteDiario(Dinheiro novoLimite) {
         this.limiteDiario = validarLimiteDiario(novoLimite);
         this.atualizadaEm = Instant.now();

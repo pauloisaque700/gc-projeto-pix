@@ -1,12 +1,12 @@
 # Backend - Projeto PIX
 
-API REST do Projeto PIX, construída com Java 21 e Spring Boot. Nesta primeira etapa, a persistência é inteiramente em memória.
+API REST do Projeto PIX, construída com Java 21 e Spring Boot. O perfil `mysql` grava usuários e contas no banco. O perfil `memoria` continua disponível para rodar a API sem MySQL.
 
 ## Executar
 
 ### Com conexão MySQL
 
-Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot:run` a partir de `backend`. No PowerShell, use `.\mvnw.cmd spring-boot:run`.
+Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot:run -Dspring-boot.run.profiles=mysql` a partir de `backend`. No PowerShell, use `.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=mysql`.
 
 | Variável | Valor esperado |
 | --- | --- |
@@ -14,19 +14,23 @@ Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot
 | `SPRING_DATASOURCE_USERNAME` | Usuário MySQL configurado para a aplicação. |
 | `SPRING_DATASOURCE_PASSWORD` | Senha desse usuário. |
 
-O MySQL deve estar acessível antes da inicialização do backend. A conexão JDBC está preparada e o Hibernate usa UTC para operações de data e hora via JDBC. Os repositórios da aplicação continuam em memória nesta etapa. A persistência das operações no MySQL depende da futura implementação dos repositórios JPA.
+Suba o MySQL e aplique `init.sql` antes de iniciar o backend fora do Docker. Os repositórios usam JDBC e gravam datas e horas em UTC. As rotas de chaves, transferências e extrato PIX continuam disponíveis em `memoria`. Elas ficam desativadas em `mysql` até a etapa de integração do PIX.
 
-Com Docker Compose, rode `docker compose up --build` na raiz do projeto. O backend usa `mysql:3306` na rede interna e espera o MySQL aceitar uma consulta com o usuário da aplicação antes de iniciar. Para acessar o banco a partir da máquina local, use `127.0.0.1` e a porta `MYSQL_PORT` (padrão `3306`).
+Com Docker Compose, rode `docker compose up --build` na raiz do projeto. O backend ativa `mysql` por padrão, usa `mysql:3306` na rede interna e espera o MySQL aceitar uma consulta com o usuário da aplicação antes de iniciar. Para acessar o banco a partir da máquina local, use `127.0.0.1` e a porta `MYSQL_PORT` (padrão `3306`).
 
 O `init.sql` da raiz cria o banco `byebank_db`. A imagem MySQL 8.4 roda esse script na primeira inicialização do volume `mysql-data`. Em um volume existente, editar o SQL ou trocar as variáveis de credenciais não reaplica a inicialização. [Documentação da imagem oficial do MySQL](https://hub.docker.com/_/mysql)
 
 ### Em memória, sem MySQL
 
-Use o perfil opcional `memoria` para executar ou testar a API sem um servidor MySQL. Na integração Docker com MySQL, use a configuração JDBC acima com esse perfil desativado.
+Use o perfil `memoria` para executar ou testar a API sem um servidor MySQL. Use `mysql` e `memoria` separadamente.
 
 ```bash
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=memoria
 ```
+
+### Testes com MySQL real
+
+Prepare um banco de teste vazio com `init.sql`. Defina `BYEBANK_TEST_MYSQL_URL`, `BYEBANK_TEST_MYSQL_USER` e `BYEBANK_TEST_MYSQL_PASSWORD` para essa instância e rode `./mvnw test`. Os testes de integração criam dados e reiniciam o contexto do Spring. Sem a URL de teste, essa suíte é ignorada e os testes em memória continuam disponíveis.
 
 ## API de usuários
 
@@ -81,9 +85,9 @@ O encerramento é lógico. O usuário pode ser marcado como `ENCERRADO` e a cont
 
 Ao encerrar uma conta, o banco suspende suas chaves PIX ativas. O esquema bloqueia alterações de saldo durante e após o encerramento, impede a reativação da conta e rejeita a ativação de chaves ou novos PIX pendentes e concluídos nessas contas. As chaves estrangeiras restringem a exclusão física de usuários, contas e transferências com vínculos protegidos, preservando o histórico financeiro e os logs de login.
 
-### Comportamento atual da API em memória
+### Comportamento atual da API
 
-Os endpoints `DELETE` ainda removem registros fisicamente em memória. O encerramento lógico no fluxo da API depende da futura integração com os repositórios JPA.
+Os endpoints `DELETE` removem os registros fisicamente. No perfil `mysql`, se uma chave estrangeira impedir a remoção, a API devolve `422` e desfaz as exclusões da mesma operação. O encerramento lógico ainda não faz parte do fluxo da API.
 
 - `DELETE /api/contas/{id}` remove, nesta ordem: as transferências PIX em que a conta aparece como origem ou destino, as chaves PIX da conta e, por último, a conta.
 - `DELETE /api/usuarios/{id}` remove todas as contas do usuário (cada uma com o cascade acima) e só depois o usuário. Um usuário com contas agora é removido com `204`.
@@ -94,4 +98,4 @@ Os endpoints `DELETE` ainda removem registros fisicamente em memória. O encerra
 - `domain`: entidades, objetos de valor e contratos do domínio;
 - `application`: casos de uso e regras de orquestração;
 - `api`: controllers, requests, responses e erros HTTP;
-- `infrastructure`: implementação temporária em memória.
+- `infrastructure`: repositórios em memória e repositórios JDBC de usuários e contas.

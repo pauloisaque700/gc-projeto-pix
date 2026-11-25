@@ -13,6 +13,7 @@ import com.byebank.pix.domain.pix.RepositorioTransferenciaPix;
 import com.byebank.pix.domain.pix.TransferenciaPix;
 import com.byebank.pix.domain.usuario.RepositorioUsuario;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.math.BigDecimal;
@@ -43,7 +44,7 @@ public class ServicoContaBancaria {
             numero = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 1_000_000));
         } while (repositorioConta.existePorAgenciaENumero(comando.agencia(), numero));
 
-        return repositorioConta.salvar(ContaBancaria.criar(comando.usuarioId(), comando.agencia(), numero,
+        return repositorioConta.inserir(ContaBancaria.criar(comando.usuarioId(), comando.agencia(), numero,
                 comando.tipoConta() == null ? TipoConta.CORRENTE : comando.tipoConta()));
     }
 
@@ -110,6 +111,7 @@ public class ServicoContaBancaria {
      * Remove a conta em cascata, sem estorno de valores: primeiro as transferências PIX em que ela
      * aparece como origem ou destino, depois as chaves PIX associadas e, por último, a própria conta.
      */
+    @Transactional
     public void remover(UUID id) {
         ContaBancaria conta = buscarPorId(id);
         for (TransferenciaPix transferencia : repositorioTransferencia.listarPorConta(conta.getId())) {
