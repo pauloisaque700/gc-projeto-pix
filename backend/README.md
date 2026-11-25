@@ -16,7 +16,9 @@ Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot
 
 O MySQL deve estar acessível antes da inicialização do backend. A conexão JDBC está preparada e o Hibernate usa UTC para operações de data e hora via JDBC. Os repositórios da aplicação continuam em memória nesta etapa. A persistência das operações no MySQL depende da futura implementação dos repositórios JPA.
 
-O `init.sql` da raiz cria o esquema para MySQL 8.0.16 ou superior. A integração com Docker Compose ainda precisa fornecer o serviço MySQL, o volume de dados, as credenciais por variáveis de ambiente e a montagem de `init.sql` em `/docker-entrypoint-initdb.d/`. Também precisa de um `healthcheck` e de uma dependência que aguarde o banco saudável antes de iniciar o backend. A imagem oficial aplica o script na primeira inicialização de um volume vazio. O ambiente MySQL é responsável pelo esquema. [Documentação da imagem oficial do MySQL](https://hub.docker.com/_/mysql)
+Com Docker Compose, rode `docker compose up --build` na raiz do projeto. O backend usa `mysql:3306` na rede interna e espera o MySQL aceitar uma consulta com o usuário da aplicação antes de iniciar. Para acessar o banco a partir da máquina local, use `127.0.0.1` e a porta `MYSQL_PORT` (padrão `3306`).
+
+O `init.sql` da raiz cria o banco `byebank_db`. A imagem MySQL 8.4 roda esse script na primeira inicialização do volume `mysql-data`. Em um volume existente, editar o SQL ou trocar as variáveis de credenciais não reaplica a inicialização. [Documentação da imagem oficial do MySQL](https://hub.docker.com/_/mysql)
 
 ### Em memória, sem MySQL
 
