@@ -60,7 +60,7 @@ export default function CriarContaBancaria() {
   if (contaCriada) {
     return (
       <Tela>
-        <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/login/tela-perfil" />
+        <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/conta/minhas-contas-bancarias" />
         <Card>
           <div role="status">
             <h2 style={styles.tituloSecao}>Conta criada com sucesso</h2>
@@ -82,7 +82,7 @@ export default function CriarContaBancaria() {
   return (
     <Tela>
       <div style={styles.container}>
-        <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/login/tela-perfil" />
+        <SmartphoneHeader title="Criar Conta Bancária" backToUrl="/conta/minhas-contas-bancarias" />
 
         <section style={styles.introducao}>
           <h2 style={styles.tituloSecao}>Nova Conta Bancária</h2>
