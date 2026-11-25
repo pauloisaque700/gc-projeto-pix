@@ -34,15 +34,21 @@ function identificarConta(conta: Conta) {
 }
 
 export default function AdicionarChavePix() {
-  const { dados, erro, sessao } = useDadosDaSessao();
+  const { sessao, dados, erro, recarregar } = useDadosDaSessao();
+  const contas = dados?.contas.filter((conta) => conta.usuarioId === sessao.usuarioId) ?? [];
 
   return (
     <Tela>
       <SmartphoneHeader title="Adicionar Chave PIX" backToUrl="/pix/minhas-chaves-pix" />
       <Card>
         {!dados && !erro && <p role="status">Carregando suas contas...</p>}
-        {erro && <p role="alert" className="text-sm text-red-600">{erro}</p>}
-        {dados?.contas.length === 0 && (
+        {erro && (
+          <>
+            <p role="alert" className="text-sm text-red-600">{erro}</p>
+            <button type="button" className={estiloBotao} onClick={recarregar}>Tentar novamente</button>
+          </>
+        )}
+        {dados && contas.length === 0 && (
           <p className="text-sm text-slate-700">
             Você precisa de uma conta bancária para cadastrar uma chave PIX.{" "}
             <Link href="/conta/criar-conta-bancaria" className="font-semibold text-indigo-700 underline">
@@ -50,8 +56,8 @@ export default function AdicionarChavePix() {
             </Link>
           </p>
         )}
-        {dados && dados.contas.length > 0 && (
-          <FormularioChave key={sessao.versao} contas={dados.contas} sessao={sessao} />
+        {contas.length > 0 && (
+          <FormularioChave key={sessao.versao} sessao={sessao} contas={contas} />
         )}
       </Card>
     </Tela>

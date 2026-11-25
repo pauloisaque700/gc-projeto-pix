@@ -28,6 +28,7 @@ class ContaBancariaControllerTest {
     private MockMvc mvc;
     private UUID usuarioId;
     private UUID contaId;
+    private String numeroConta;
 
     @BeforeEach
     void preparar() {
@@ -38,7 +39,9 @@ class ContaBancariaControllerTest {
         usuarioId = usuario.getId();
         var servico = new ServicoContaBancaria(new RepositorioContaBancariaEmMemoria(), usuarios,
                 new RepositorioChavePixEmMemoria(), new RepositorioTransferenciaPixEmMemoria());
-        contaId = servico.cadastrar(new CadastroContaBancariaCommand(usuarioId, "0001", null)).getId();
+        var conta = servico.cadastrar(new CadastroContaBancariaCommand(usuarioId, "0001", null));
+        contaId = conta.getId();
+        numeroConta = conta.getNumero();
         mvc = MockMvcBuilders.standaloneSetup(new ContaBancariaController(servico))
                 .setControllerAdvice(new ManipuladorDeExcecoesApi()).build();
     }
@@ -58,8 +61,26 @@ class ContaBancariaControllerTest {
         mvc.perform(get("/api/usuarios/{id}/contas", usuarioId))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].nomeTitular").value("Maria da Silva"));
         mvc.perform(put("/api/contas/{id}", contaId).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"agencia\":\"0002\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.nomeTitular").value("Maria da Silva"))
+                .andExpect(jsonPath("$.agencia").value("0002")).andExpect(jsonPath("$.numero").value(numeroConta));
+    }
+
+    @Test
+    void deveAceitarNumeroAtualERejeitarOutroNumero() throws Exception {
+        mvc.perform(put("/api/contas/{id}", contaId).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"agencia\":\"0002\",\"numero\":\"123\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.nomeTitular").value("Maria da Silva"));
+                .andExpect(status().is(422))
+                .andExpect(jsonPath("$.mensagem").value("O número da conta não pode ser alterado."));
+        mvc.perform(get("/api/contas/{id}", contaId))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.agencia").value("0001"))
+                .andExpect(jsonPath("$.numero").value(numeroConta));
+        mvc.perform(put("/api/contas/{id}", contaId).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"agencia":"0002","numero":"%s"}
+                        """.formatted(numeroConta)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.agencia").value("0002"))
+                .andExpect(jsonPath("$.numero").value(numeroConta));
     }
 
     @Test

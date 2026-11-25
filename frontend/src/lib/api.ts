@@ -52,6 +52,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(`Erro inesperado ao chamar ${path} (status ${response.status}).`);
   }
 
+  if (dados === null) {
+    throw new Error("O servidor devolveu uma resposta inválida.");
+  }
+
   return dados as T;
 }
 
@@ -189,7 +193,6 @@ export interface CriarContaBancariaRequest {
 
 export interface AtualizarContaBancariaRequest {
   agencia: string;
-  numero: string;
 }
 
 export function criarConta({ usuarioId, agencia, tipoConta }: CriarContaBancariaRequest): Promise<Conta> {
@@ -207,10 +210,10 @@ export function listarContasDoUsuario(usuarioId: string): Promise<Conta[]> {
   return request<Conta[]>(`/api/usuarios/${usuarioId}/contas`, { cache: "no-store" });
 }
 
-export function atualizarConta(id: string, dados: AtualizarContaBancariaRequest) {
+export function atualizarConta(id: string, { agencia }: AtualizarContaBancariaRequest) {
   return request<ContaBancariaResponse>(`/api/contas/${id}`, {
     method: "PUT",
-    body: JSON.stringify(dados),
+    body: JSON.stringify({ agencia }),
   });
 }
 

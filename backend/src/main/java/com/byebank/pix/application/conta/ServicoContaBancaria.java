@@ -98,12 +98,15 @@ public class ServicoContaBancaria {
 
     public synchronized ContaBancaria atualizar(UUID id, AtualizacaoContaBancariaCommand comando) {
         ContaBancaria conta = buscarPorId(id);
-        boolean alterouIdentificacao = !conta.getAgencia().equals(comando.agencia())
-                || !conta.getNumero().equals(comando.numero());
-        if (alterouIdentificacao && repositorioConta.existePorAgenciaENumero(comando.agencia(), comando.numero())) {
+        String numeroAtual = conta.getNumero();
+        if (comando.numero() != null && !numeroAtual.equals(comando.numero())) {
+            throw new RegraDeNegocioException("O número da conta não pode ser alterado.");
+        }
+        boolean alterouAgencia = !conta.getAgencia().equals(comando.agencia());
+        if (alterouAgencia && repositorioConta.existePorAgenciaENumero(comando.agencia(), numeroAtual)) {
             throw new RegraDeNegocioException("Já existe uma conta cadastrada com esta agência e número.");
         }
-        conta.atualizarDados(comando.agencia(), comando.numero());
+        conta.atualizarAgencia(comando.agencia());
         return repositorioConta.salvar(conta);
     }
 
@@ -115,13 +118,17 @@ public class ServicoContaBancaria {
     public void remover(UUID id) {
         ContaBancaria conta = repositorioConta.buscarPorIdParaAtualizar(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Conta bancária não encontrada."));
-        for (TransferenciaPix transferencia : repositorioTransferencia.listarPorConta(conta.getId())) {
-            repositorioTransferencia.remover(transferencia);
+        synchronized (conta) {
+            conta = repositorioConta.buscarPorId(id)
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Conta bancária não encontrada."));
+            for (TransferenciaPix transferencia : repositorioTransferencia.listarPorConta(conta.getId())) {
+                repositorioTransferencia.remover(transferencia);
+            }
+            for (ChavePix chave : repositorioChave.listarPorContaId(conta.getId())) {
+                repositorioChave.remover(chave);
+            }
+            repositorioConta.remover(conta);
         }
-        for (ChavePix chave : repositorioChave.listarPorContaId(conta.getId())) {
-            repositorioChave.remover(chave);
-        }
-        repositorioConta.remover(conta);
     }
 
     private void garantirUsuarioExiste(UUID usuarioId) {

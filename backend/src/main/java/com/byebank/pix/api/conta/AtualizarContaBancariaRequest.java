@@ -8,7 +8,7 @@ public record AtualizarContaBancariaRequest(
         @Pattern(regexp = "\\d{1,10}", message = "A agência deve conter de 1 a 10 dígitos.")
         String agencia,
 
-        @NotBlank(message = "O número da conta é obrigatório.")
+        // Clientes anteriores ainda podem enviar o número atual.
         @Pattern(regexp = "\\d{1,20}", message = "O número da conta deve conter de 1 a 20 dígitos.")
         String numero
 ) {

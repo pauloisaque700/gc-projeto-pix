@@ -111,7 +111,7 @@ export default function MinhasContasBancarias() {
                         className="p-2 text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
                         title="Remover conta"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -130,7 +130,7 @@ export default function MinhasContasBancarias() {
                       bgClass="bg-[#EEF2FF] hover:bg-[#E0E7FF]"
                       textClass="text-[#4F46E5] font-semibold text-sm"
                       widthClass="w-full"
-                        onClick={() => router.push(`/login/tela-perfil?contaId=${encodeURIComponent(conta.id)}`)}
+                      onClick={() => router.push(`/login/tela-perfil?contaId=${encodeURIComponent(conta.id)}`)}
                     />
                   </div>
                 </div>

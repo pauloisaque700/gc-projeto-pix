@@ -32,6 +32,10 @@ Use o perfil `memoria` para executar ou testar a API sem um servidor MySQL. Use 
 
 Prepare um banco de teste vazio com `init.sql`. Defina `BYEBANK_TEST_MYSQL_URL`, `BYEBANK_TEST_MYSQL_USER` e `BYEBANK_TEST_MYSQL_PASSWORD` para essa instância e rode `./mvnw test`. Os testes de integração criam dados e reiniciam o contexto do Spring. O CI sobe apenas o serviço MySQL do Compose para rodar essa suíte junto com os testes em memória. Sem a URL de teste, o Maven executa só os testes em memória.
 
+## Identidade e autorização
+
+O sistema não tem login real com JWT ou sessão no backend. O frontend salva o ID do usuário no `localStorage` para simular a sessão. Isso é uma limitação conhecida do trabalho acadêmico.
+
 ## API de usuários
 
 | Método | Rota | Finalidade |
@@ -77,13 +81,21 @@ Exemplo de criação de conta:
 
 Cada conta recebe um número aleatório de seis dígitos, único na agência, e inicia com saldo `0.00`. As regras de exclusão variam conforme o perfil. [Cascade de remoção](#cascade-de-remoção)
 
-## PIX no MySQL
+## Atomicidade do PIX
 
-Débito, crédito e registro do PIX fazem parte da mesma transação. O MySQL bloqueia as contas com `SELECT ... FOR UPDATE` em ordem de UUID. A transação usa `READ COMMITTED` para conferir o saldo e o total do dia após obter os bloqueios. Se alguma etapa falhar, a transação desfaz a operação inteira.
+No perfil `memoria`, erros durante o PIX restauram os saldos e removem o registro da transferência se ele tiver sido inserido. Os bloqueios em ordem estável também impedem que envios concorrentes consumam o mesmo saldo ou excedam o limite diário.
+
+No perfil `mysql`, débito, crédito e registro do PIX fazem parte da mesma transação. O MySQL bloqueia as contas com `SELECT ... FOR UPDATE` em ordem de UUID. A transação usa `READ COMMITTED` para conferir o saldo e o total do dia após obter os bloqueios. Se alguma etapa falhar, a transação desfaz a operação inteira.
 
 O extrato lê os PIX concluídos em que a conta aparece como origem ou destino. Chaves suspensas continuam guardadas e ficam indisponíveis para receber PIX. Edição e desbloqueio de chaves seguem sem rotas na API atual.
 
 ## Cascade de remoção
+
+### Comportamento em memória
+
+- `DELETE /api/contas/{id}` remove as transferências PIX associadas, depois as chaves PIX e a conta.
+- `DELETE /api/usuarios/{id}` remove as contas do usuário da mesma forma e, por fim, o cadastro.
+- A remoção não estorna valores: o PIX removido some do extrato da outra conta, mas o saldo dela permanece igual.
 
 ### Política no esquema MySQL
 
@@ -97,7 +109,6 @@ Os endpoints `DELETE` removem os registros fisicamente. No perfil `mysql`, uma c
 
 - `DELETE /api/contas/{id}` remove as chaves e depois a conta. Em `memoria`, também remove as transferências associadas antes da conta.
 - `DELETE /api/usuarios/{id}` remove as contas do usuário e depois o cadastro. Uma remoção bem-sucedida retorna `204`.
-- Em `memoria`, a transferência removida some do extrato da outra conta. O saldo dessa conta continua igual.
 
 ## Organização
 

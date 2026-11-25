@@ -44,6 +44,8 @@ public class ServicoTransferenciaPix {
         }
         Dinheiro valor = converterValor(comando.valor());
         return movimentar(comando.contaOrigemId(), chaveDestino.getContaId(), (origem, destino) -> {
+            buscarContaOuFalhar(origem.getId());
+            buscarContaOuFalhar(destino.getId());
             confirmarChaveDestino(chaveDestino);
             TransferenciaPix transferencia = TransferenciaPix.registrarEntreContas(
                     origem.getId(), destino.getId(), chaveDestino.getValor(), valor);
@@ -76,6 +78,7 @@ public class ServicoTransferenciaPix {
         ChavePix chaveDestino = buscarChaveOuFalhar(comando.chaveDestino());
         Dinheiro valor = converterValor(comando.valor());
         return movimentar(null, chaveDestino.getContaId(), (origem, destino) -> {
+            buscarContaOuFalhar(destino.getId());
             confirmarChaveDestino(chaveDestino);
             destino.creditar(valor);
             repositorioConta.salvarSaldo(destino);
@@ -114,8 +117,11 @@ public class ServicoTransferenciaPix {
 
     /** Extrato de PIX de uma conta (transferências em que ela aparece como origem ou destino). */
     public List<TransferenciaPix> listarExtrato(UUID contaId) {
-        buscarContaOuFalhar(contaId);
-        return repositorioTransferencia.listarPorConta(contaId);
+        ContaBancaria conta = buscarContaOuFalhar(contaId);
+        synchronized (conta) {
+            buscarContaOuFalhar(contaId);
+            return repositorioTransferencia.listarPorConta(contaId);
+        }
     }
 
     private ChavePix buscarChaveOuFalhar(String chaveDigitada) {
