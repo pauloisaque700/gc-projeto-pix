@@ -10,7 +10,7 @@ Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot
 
 | Variável | Valor esperado |
 | --- | --- |
-| `SPRING_DATASOURCE_URL` | URL JDBC do banco `byebank_db`, por exemplo `jdbc:mysql://<host-mysql>:3306/byebank_db`. Em Docker, use o nome real do serviço MySQL como host. |
+| `SPRING_DATASOURCE_URL` | URL JDBC do banco `byebank_db`. Para o MySQL local do Compose, use `jdbc:mysql://127.0.0.1:3306/byebank_db?serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false` com a porta publicada. Dentro do Docker, use `mysql:3306`. |
 | `SPRING_DATASOURCE_USERNAME` | Usuário MySQL configurado para a aplicação. |
 | `SPRING_DATASOURCE_PASSWORD` | Senha desse usuário. |
 
@@ -30,7 +30,7 @@ Use o perfil `memoria` para executar ou testar a API sem um servidor MySQL. Use 
 
 ### Testes com MySQL real
 
-Prepare um banco de teste vazio com `init.sql`. Defina `BYEBANK_TEST_MYSQL_URL`, `BYEBANK_TEST_MYSQL_USER` e `BYEBANK_TEST_MYSQL_PASSWORD` para essa instância e rode `./mvnw test`. Os testes de integração criam dados e reiniciam o contexto do Spring. Sem a URL de teste, essa suíte é ignorada e os testes em memória continuam disponíveis.
+Prepare um banco de teste vazio com `init.sql`. Defina `BYEBANK_TEST_MYSQL_URL`, `BYEBANK_TEST_MYSQL_USER` e `BYEBANK_TEST_MYSQL_PASSWORD` para essa instância e rode `./mvnw test`. Os testes de integração criam dados e reiniciam o contexto do Spring. O CI sobe apenas o serviço MySQL do Compose para rodar essa suíte junto com os testes em memória. Sem a URL de teste, o Maven executa só os testes em memória.
 
 ## API de usuários
 
@@ -53,7 +53,7 @@ Exemplo de cadastro:
 }
 ```
 
-No cadastro e na atualização, `Email` remove espaços nas extremidades e converte o valor para minúsculas com `Locale.ROOT`. Na futura persistência JPA, grave o valor normalizado. O esquema preserva `utf8mb4_bin`, exige minúsculas e garante a unicidade pelo índice de e-mail. O repositório em memória verifica duplicidade apenas por documento.
+No cadastro e na atualização, o backend remove espaços no início e no fim do e-mail e converte o valor para minúsculas. O repositório JDBC grava o e-mail normalizado, e o MySQL garante que ele seja único. O repositório em memória verifica duplicidade apenas por documento.
 
 ## API de contas bancárias
 
@@ -75,7 +75,7 @@ Exemplo de criação de conta:
 }
 ```
 
-Cada conta recebe um número aleatório de seis dígitos, único na agência, e inicia com saldo `0.00`. A remoção de contas e de usuários é feita em cascata (veja [Cascade de remoção](#cascade-de-remoção)).
+Cada conta recebe um número aleatório de seis dígitos, único na agência, e inicia com saldo `0.00`. As regras de exclusão variam conforme o perfil. [Cascade de remoção](#cascade-de-remoção)
 
 ## PIX no MySQL
 

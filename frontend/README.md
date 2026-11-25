@@ -1,36 +1,27 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend - Projeto PIX
 
-## Getting Started
+Interface do ByeBank feita com Next.js e TypeScript.
 
-First, run the development server:
+## Executar
+
+Com o Node.js 20 e o backend em execução, rode na pasta `frontend`.
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra http://localhost:3000. Por padrão, o navegador chama a API em http://localhost:8080. Se o backend estiver em outra porta, defina `NEXT_PUBLIC_API_URL` em `.env.local` e reinicie o Next.js. A origem liberada no backend é `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Para rodar os três serviços juntos, use o [Docker Compose na raiz](../README.md#usando-docker-compose). O Dockerfile incorpora `NEXT_PUBLIC_API_URL` na compilação. Reconstrua a imagem se mudar esse endereço.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Acesso à demonstração
 
-## Learn More
+Cadastre um usuário pela interface. O cadastro guarda o ID no `localStorage` deste navegador para simular a sessão. O formulário de e-mail e senha ainda não autentica no backend.
 
-To learn more about Next.js, take a look at the following resources:
+## Verificações
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run build
+```

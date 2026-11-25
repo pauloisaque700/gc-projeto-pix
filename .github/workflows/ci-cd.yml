@@ -13,10 +13,15 @@ env:
   IMAGE_PREFIX: ${{ github.repository }}
 
 jobs:
-  # 1. QUALIDADE E TESTES (Roda em todo PR e Push)
   test-and-lint:
-    name: Testes Backend & Lint Frontend
+    name: Testes Backend & Lint e Build Frontend
     runs-on: ubuntu-latest
+    env:
+      APP_ENV: ci
+      MYSQL_PORT: '33306'
+      MYSQL_USER: byebank_ci
+      MYSQL_PASSWORD: byebank-ci-test
+      MYSQL_ROOT_PASSWORD: byebank-ci-root
     steps:
       - name: Baixar código
         uses: actions/checkout@v4
@@ -28,9 +33,16 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Rodar testes unitários do Backend
+      - name: Subir MySQL de teste
+        run: docker compose up --wait --wait-timeout 120 mysql
+
+      - name: Rodar testes do Backend em memória e MySQL
         working-directory: ./backend
-        run: chmod +x mvnw && ./mvnw test
+        env:
+          BYEBANK_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:33306/byebank_db?serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+          BYEBANK_TEST_MYSQL_USER: ${{ env.MYSQL_USER }}
+          BYEBANK_TEST_MYSQL_PASSWORD: ${{ env.MYSQL_PASSWORD }}
+        run: ./mvnw test
 
       - name: Configurar Node.js 20
         uses: actions/setup-node@v4
@@ -64,10 +76,10 @@ jobs:
       - name: Definir Tag da Versão
         id: meta
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=sha-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+            echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Login no GitHub Container Registry (GHCR)
@@ -95,9 +107,9 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${{ steps.meta.outputs.tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:latest
 
-  # 3. DEPLOY AUTOMÁTICO EM DEV (Todo push na main)
+  # 3. VALIDAÇÃO DE CONFIGURAÇÃO EM DEV (Todo push na main)
   deploy-dev:
-    name: Deploy Ambiente DEV
+    name: Validar configuração DEV
     needs: build-and-push
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -106,19 +118,19 @@ jobs:
       - name: Baixar código
         uses: actions/checkout@v4
 
-      - name: Simular/Executar Deploy em DEV
+      - name: Validar Compose com as imagens publicadas
         env:
           APP_ENV: dev
-          API_URL: ${{ vars.API_URL }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
         run: |
-          echo "🚀 Implantando versão $IMAGE_TAG no ambiente $APP_ENV"
-          echo "🔗 Conectando na API: $API_URL"
-          docker compose config
+          test -n "$IMAGE_TAG"
+          BACKEND_IMAGE="$REGISTRY/$IMAGE_PREFIX-backend:$IMAGE_TAG" \
+          FRONTEND_IMAGE="$REGISTRY/$IMAGE_PREFIX-frontend:$IMAGE_TAG" \
+          docker compose config --quiet
 
-  # 4. DEPLOY EM HOMOLOGAÇÃO (Quando uma Tag v* é criada)
+  # 4. VALIDAÇÃO DE CONFIGURAÇÃO EM HOMOLOGAÇÃO (Tag v*)
   deploy-hom:
-    name: Deploy Ambiente HOMOLOGAÇÃO
+    name: Validar configuração de homologação
     needs: build-and-push
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
@@ -127,20 +139,20 @@ jobs:
       - name: Baixar código
         uses: actions/checkout@v4
 
-      - name: Simular/Executar Deploy em HOM
+      - name: Validar Compose com as imagens publicadas
         env:
           APP_ENV: hom
-          API_URL: ${{ vars.API_URL }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
         run: |
-          echo "🧪 Implantando release $IMAGE_TAG em HOMOLOGAÇÃO ($APP_ENV)"
-          echo "🔗 Conectando na API: $API_URL"
-          docker compose config
+          test -n "$IMAGE_TAG"
+          BACKEND_IMAGE="$REGISTRY/$IMAGE_PREFIX-backend:$IMAGE_TAG" \
+          FRONTEND_IMAGE="$REGISTRY/$IMAGE_PREFIX-frontend:$IMAGE_TAG" \
+          docker compose config --quiet
 
-  # 5. DEPLOY EM PRODUÇÃO (Exige aprovação manual do Coordenador no GitHub)
+  # 5. VALIDAÇÃO DE CONFIGURAÇÃO NO ENVIRONMENT PRODUCTION (Tag v*)
   deploy-prd:
-    name: Deploy Ambiente PRODUÇÃO
-    needs: deploy-hom
+    name: Validar configuração de produção
+    needs: [build-and-push, deploy-hom]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment: production
@@ -148,12 +160,12 @@ jobs:
       - name: Baixar código
         uses: actions/checkout@v4
 
-      - name: Simular/Executar Deploy em PRD
+      - name: Validar Compose com as imagens publicadas
         env:
           APP_ENV: prd
-          API_URL: ${{ vars.API_URL }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
         run: |
-          echo "✅ Aprovado pelo coordenador! Subindo versão $IMAGE_TAG em PRODUÇÃO ($APP_ENV)"
-          echo "🔗 Conectando na API: $API_URL"
-          docker compose config
+          test -n "$IMAGE_TAG"
+          BACKEND_IMAGE="$REGISTRY/$IMAGE_PREFIX-backend:$IMAGE_TAG" \
+          FRONTEND_IMAGE="$REGISTRY/$IMAGE_PREFIX-frontend:$IMAGE_TAG" \
+          docker compose config --quiet
