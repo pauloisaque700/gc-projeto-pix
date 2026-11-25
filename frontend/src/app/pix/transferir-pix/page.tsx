@@ -1,69 +1,19 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Search, DollarSign, ChevronDown, Calendar, Clock } from 'lucide-react';
-import Tela from '../../../components/Tela';
-import SmartphoneHeader from '../../../components/SmartphoneHeader';
-import Card from '../../../components/Card';
-import CardConta from '../../../components/CardConta';
-import Input from '../../../components/Input';
-import BotaoGrande from '../../../components/BotaoGrande';
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { DollarSign, Search } from "lucide-react";
+import Tela from "../../../components/Tela";
+import SmartphoneHeader from "../../../components/SmartphoneHeader";
+import Card from "../../../components/Card";
+import Input from "../../../components/Input";
+import { formatarMoeda, obterRascunhoPix, rotuloConta, salvarRascunhoPix, valorDigitadoPix } from "../../../lib/pix";
+import { obterSessaoLocal, type SessaoLocal } from "../../../lib/session";
+import { useDadosDaSessao, type DadosDaSessao } from "../../../lib/use-dados-da-sessao";
 
-export default function TransferirPix() {  
-  const router = useRouter();
-
-  interface Conta {
-    id: string;
-    tipoConta: string;
-    saldo?: string;
-    brand?: string;
-  }
-
-  const contasDisponiveis = [
-    { id: '1', tipoConta: 'Conta Corrente', saldo: '1.500,00', brand: 'ByeBank' }
-  ];
-
-  const [contaOrigem] = useState<Conta>(contasDisponiveis[0]);
-  const [chaveDestinatario, setChaveDestinatario] = useState('');
-  const [valorTransferencia, setValorTransferencia] = useState('250,00');
-  const [loading, setLoading] = useState(false);
-  const [limiteOperacional] = useState(5000.00);
-
-  // Novos estados adicionados para os novos elementos da tela
-  const [tipoTransferencia, setTipoTransferencia] = useState('instantaneo');
-  const [dataAgendamento, setDataAgendamento] = useState('');
-  const [horaAgendamento, setHoraAgendamento] = useState('');
-
-  const contatosRecentes = [
-    { id: '1', iniciais: 'JS', nome: 'João', chave: 'joao@email.com' },
-    { id: '2', iniciais: 'MO', nome: 'Maria', chave: '11999999999' },
-    { id: '3', iniciais: 'CR', nome: 'Carlos', chave: '123.456.789-00' },
-  ];
-
-  const handleContinuar = () => {
-    setLoading(true);
-    console.log("Avançando com a transferência:", { 
-      contaOrigem, 
-      chaveDestinatario, 
-      valorTransferencia,
-      tipoTransferencia,
-      dataAgendamento,
-      horaAgendamento
-    });
-    // Lógica para avançar de passo ou enviar para a API
-  };
-
-  // Cancela o PIX: para o loading, volta os campos ao estado inicial e sai da tela
-  const handleCancelar = () => {
-    setLoading(false);
-    setChaveDestinatario('');
-    setValorTransferencia('250,00');
-    setTipoTransferencia('instantaneo');
-    setDataAgendamento('');
-    setHoraAgendamento('');
-    router.push('/tela-principal');
-  };
+export default function TransferirPix() {
+  const { sessao, dados, erro: erroSessao, recarregar } = useDadosDaSessao();
 
   return (
     <Tela>
@@ -82,127 +32,37 @@ export default function TransferirPix() {
   );
 }
 
-      <Card paddingClass="p-5" bgClass="bg-white">
-        <div className="flex flex-col gap-5">
-          
-          {/* 1. Seleção da Conta de Origem */}
-          <div className="flex flex-col gap-2 w-full font-sans">
-            <label className="text-sm font-semibold text-slate-700">
-              Origem da transferência
-            </label>
-            <CardConta 
-              tipoConta={contaOrigem.tipoConta}
-              nomeBanco={contaOrigem.brand || ''}
-              saldo={contaOrigem.saldo || '0,00'}
-            />
-          </div>
+function FormularioPix({ dados, sessao }: { dados: DadosDaSessao; sessao: SessaoLocal }) {
+  const router = useRouter();
+  const usuarioId = dados.usuario.id;
+  const [rascunho] = useState(() => obterRascunhoPix(usuarioId));
+  const [contaId, setContaId] = useState(rascunho?.contaOrigemId ?? "");
+  const [chaveDestino, setChaveDestino] = useState(rascunho?.chaveDestino ?? "");
+  const [valorTexto, setValorTexto] = useState(rascunho ? String(rascunho.valor).replace(".", ",") : "");
+  const [erro, setErro] = useState<string | null>(null);
 
-          {/* 2. Campo do Destinatário usando seu componente Input */}
-          <Input 
-            label="Chave PIX do destinatário"
-            placeholder="E-mail, CPF, celular ou chave aleatória" 
-            icon={<Search className="w-5 h-5 stroke-[1.8]" />} 
-            value={chaveDestinatario}
-            onChange={(e) => setChaveDestinatario(e.target.value)}
-          />
+  const contasAtivas = dados.contas.filter((conta) => conta.status === "ATIVA" && conta.usuarioId === usuarioId);
+  const contaOrigem = contasAtivas.find((conta) => conta.id === contaId)
+    ?? (!contaId && contasAtivas.length === 1 ? contasAtivas[0] : undefined);
 
-          {/* 3. Campo de Valor + Seletor Instantâneo + Data/Hora */}
-          <div className="flex flex-col gap-3">
-            <Input 
-              label="Quanto deseja transferir?"
-              placeholder="250,00" 
-              type="text"
-              icon={<DollarSign className="w-5 h-5 stroke-[1.8]" />} 
-              value={valorTransferencia}
-              onChange={(e) => setValorTransferencia(e.target.value)}
-            />
+  function continuar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (obterSessaoLocal() !== sessao || !contaOrigem) return;
 
-            {/* Dropdown Instantâneo / Agendado */}
-            <div className="relative">
-              <select
-                value={tipoTransferencia}
-                onChange={(e) => {
-                  const valor = e.target.value;
-                  setTipoTransferencia(valor);
-                  if (valor === 'instantaneo') {
-                    setDataAgendamento('');
-                    setHoraAgendamento('');
-                  }
-                }}
-                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:border-[#4F46E5] transition-colors cursor-pointer"
-              >
-                <option value="instantaneo">Instantâneo</option>
-                <option value="agendado">Agendado</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+    const chave = chaveDestino.trim();
+    const valor = valorDigitadoPix(valorTexto);
+    if (!chave || valor === null) {
+      setErro("Informe a chave de destino e um valor positivo com até duas casas decimais.");
+      return;
+    }
 
-            {/* Limite operacional */}
-            <span className="text-xs text-slate-400 font-sans">
-              Limite operacional restante: R$ {limiteOperacional.toFixed(2).replace('.', ',')}
-            </span>
-
-            {/* Botões/Pílulas de Data e Hora (aparecem apenas quando 'agendado' está selecionado) */}
-            {tipoTransferencia === 'agendado' && (
-              <div className="flex items-center gap-2.5 pt-1">
-                <label className="relative flex items-center gap-1.5 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-medium px-3.5 py-2 rounded-full cursor-pointer transition-colors">
-                  <Calendar className="w-3.5 h-3.5 stroke-2" />
-                  <span>{dataAgendamento || 'Data'}</span>
-                  <input
-                    type="date"
-                    value={dataAgendamento}
-                    onChange={(e) => setDataAgendamento(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                </label>
-
-                <label className="relative flex items-center gap-1.5 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-medium px-3.5 py-2 rounded-full cursor-pointer transition-colors">
-                  <Clock className="w-3.5 h-3.5 stroke-2" />
-                  <span>{horaAgendamento || 'Hora'}</span>
-                  <input
-                    type="time"
-                    value={horaAgendamento}
-                    onChange={(e) => setHoraAgendamento(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
-
-          {/* 4. Contatos Recentes */}
-          <div className="flex flex-col gap-2.5 pt-2 font-sans">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              CONTATOS RECENTES
-            </span>
-            <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
-              {contatosRecentes.map((contato) => (
-                <button
-                  key={contato.id}
-                  type="button"
-                  onClick={() => setChaveDestinatario(contato.chave)}
-                  className="flex items-center gap-2 bg-white border border-slate-100 hover:border-[#4F46E5] rounded-full py-1.5 pl-1.5 pr-3.5 shadow-2xs transition-colors shrink-0 cursor-pointer"
-                >
-                  <span className="w-6 h-6 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[10px] font-bold flex items-center justify-center">
-                    {contato.iniciais}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-700">
-                    {contato.nome}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 5. Botões Inferiores: Cancelar + Continuar */}
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            <button
-              type="button"
-              onClick={handleCancelar}
-              className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-base py-3.5 transition-colors cursor-pointer"
-            >
-              Cancelar
-            </button>
+    try {
+      salvarRascunhoPix({ usuarioId, contaOrigemId: contaOrigem.id, chaveDestino: chave, valor });
+      router.push("/pix/confirmar-pix");
+    } catch {
+      setErro("Não foi possível guardar os dados para confirmar o PIX neste navegador.");
+    }
+  }
 
   if (contasAtivas.length === 0) {
     return (
