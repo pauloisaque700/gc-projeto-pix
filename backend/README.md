@@ -1,6 +1,6 @@
 # Backend - Projeto PIX
 
-API REST do Projeto PIX, construída com Java 21 e Spring Boot. O perfil `mysql` grava usuários e contas no banco. O perfil `memoria` continua disponível para rodar a API sem MySQL.
+API REST do Projeto PIX, construída com Java 21 e Spring Boot. O perfil `mysql` grava usuários, contas, chaves e transferências no banco. O perfil `memoria` roda a mesma API sem MySQL.
 
 ## Executar
 
@@ -14,7 +14,7 @@ Defina as variáveis no ambiente do backend e então execute `./mvnw spring-boot
 | `SPRING_DATASOURCE_USERNAME` | Usuário MySQL configurado para a aplicação. |
 | `SPRING_DATASOURCE_PASSWORD` | Senha desse usuário. |
 
-Suba o MySQL e aplique `init.sql` antes de iniciar o backend fora do Docker. Os repositórios usam JDBC e gravam datas e horas em UTC. As rotas de chaves, transferências e extrato PIX continuam disponíveis em `memoria`. Elas ficam desativadas em `mysql` até a etapa de integração do PIX.
+Suba o MySQL e aplique `init.sql` antes de iniciar o backend fora do Docker. Os repositórios usam JDBC e gravam datas e horas em UTC.
 
 Com Docker Compose, rode `docker compose up --build` na raiz do projeto. O backend ativa `mysql` por padrão, usa `mysql:3306` na rede interna e espera o MySQL aceitar uma consulta com o usuário da aplicação antes de iniciar. Para acessar o banco a partir da máquina local, use `127.0.0.1` e a porta `MYSQL_PORT` (padrão `3306`).
 
@@ -77,6 +77,12 @@ Exemplo de criação de conta:
 
 Cada conta recebe um número aleatório de seis dígitos, único na agência, e inicia com saldo `0.00`. A remoção de contas e de usuários é feita em cascata (veja [Cascade de remoção](#cascade-de-remoção)).
 
+## PIX no MySQL
+
+Débito, crédito e registro do PIX fazem parte da mesma transação. O MySQL bloqueia as contas com `SELECT ... FOR UPDATE` em ordem de UUID. A transação usa `READ COMMITTED` para conferir o saldo e o total do dia após obter os bloqueios. Se alguma etapa falhar, a transação desfaz a operação inteira.
+
+O extrato lê os PIX concluídos em que a conta aparece como origem ou destino. Chaves suspensas continuam guardadas e ficam indisponíveis para receber PIX. Edição e desbloqueio de chaves seguem sem rotas na API atual.
+
 ## Cascade de remoção
 
 ### Política no esquema MySQL
@@ -87,15 +93,15 @@ Ao encerrar uma conta, o banco suspende suas chaves PIX ativas. O esquema bloque
 
 ### Comportamento atual da API
 
-Os endpoints `DELETE` removem os registros fisicamente. No perfil `mysql`, se uma chave estrangeira impedir a remoção, a API devolve `422` e desfaz as exclusões da mesma operação. O encerramento lógico ainda não faz parte do fluxo da API.
+Os endpoints `DELETE` removem os registros fisicamente. No perfil `mysql`, uma conta com transferências registradas fica protegida contra exclusão. Se houver histórico de PIX ou outra chave estrangeira impedir a remoção, a API devolve `422` e desfaz as exclusões da mesma operação. O encerramento lógico ainda não faz parte do fluxo da API.
 
-- `DELETE /api/contas/{id}` remove, nesta ordem: as transferências PIX em que a conta aparece como origem ou destino, as chaves PIX da conta e, por último, a conta.
-- `DELETE /api/usuarios/{id}` remove todas as contas do usuário (cada uma com o cascade acima) e só depois o usuário. Um usuário com contas agora é removido com `204`.
-- A remoção não estorna valores. Se a conta removida transferiu para outra conta, o registro some do extrato PIX da conta de destino, mas o saldo dela é mantido.
+- `DELETE /api/contas/{id}` remove as chaves e depois a conta. Em `memoria`, também remove as transferências associadas antes da conta.
+- `DELETE /api/usuarios/{id}` remove as contas do usuário e depois o cadastro. Uma remoção bem-sucedida retorna `204`.
+- Em `memoria`, a transferência removida some do extrato da outra conta. O saldo dessa conta continua igual.
 
 ## Organização
 
 - `domain`: entidades, objetos de valor e contratos do domínio;
 - `application`: casos de uso e regras de orquestração;
 - `api`: controllers, requests, responses e erros HTTP;
-- `infrastructure`: repositórios em memória e repositórios JDBC de usuários e contas.
+- `infrastructure`: repositórios em memória e repositórios JDBC de usuários, contas, chaves e transferências.

@@ -1,134 +1,95 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { Calendar } from "lucide-react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import Tela from "../../../components/Tela";
 import SmartphoneHeader from "../../../components/SmartphoneHeader";
 import CardTransferencias from "../../../components/CardTransferencias";
-
-type TipoTransacao = "enviado" | "recebido" | "pagamento";
-
-interface Transacao {
-  id: string;
-  tipo: TipoTransacao;
-  titulo: string;
-  nome: string;
-  valor: string;      // Texto exibido (Ex: "+ R\$ 500,00")
-  valorNumerico: number; // Mapeado para preencher o 'amount' do CardTransferencias
-  dataLabel: string;  // Texto exibido (Ex: "Hoje")
-  dataISO: string;    // Formato "YYYY-MM-DD" para filtros
-}
-
-// Dados de exemplo mantidos e estruturados com o valor numérico necessário para o card
-const TRANSACOES: Transacao[] = [
-  { id: "1", tipo: "recebido", titulo: "PIX recebido", nome: "Carlos Souza", valor: "+ R\$ 500,00", valorNumerico: 500.00, dataLabel: "Hoje", dataISO: "2026-09-20" },
-  { id: "2", tipo: "enviado", titulo: "PIX enviado", nome: "Maria Silva", valor: "- R\$ 150,00", valorNumerico: -150.00, dataLabel: "Hoje", dataISO: "2026-09-20" },
-  { id: "3", tipo: "pagamento", titulo: "Pagamento", nome: "Conta de luz", valor: "- R\$ 230,00", valorNumerico: -230.00, dataLabel: "Hoje", dataISO: "2026-09-20" },
-];
+import { formatarDataPix, linkDetalhesPix, rotuloConta } from "../../../lib/pix";
+import { useDadosDaSessao } from "../../../lib/use-dados-da-sessao";
+import { useExtratoPix } from "../../../lib/use-extrato-pix";
 
 export default function TransacoesDaContaPage() {
-  const [dataInicial, setDataInicial] = useState<string>("");
-  const [dataFinal, setDataFinal] = useState<string>("");
+  return (
+    <Suspense fallback={<Tela><p role="status">Carregando extrato...</p></Tela>}>
+      <ExtratoDaRota />
+    </Suspense>
+  );
+}
 
-  const inputInicialRef = useRef<HTMLInputElement>(null);
-  const inputFinalRef = useRef<HTMLInputElement>(null);
+function diaLocal(instante: string) {
+  const data = new Date(instante);
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+  return `${data.getFullYear()}-${mes}-${dia}`;
+}
 
-  const formatarDataBR = (dataString: string) => {
-    if (!dataString) return "";
-    const [ano, mes, dia] = dataString.split("-");
-    return `${dia}/${mes}/${ano}`;
-  };
+function ExtratoDaRota() {
+  const contaId = useSearchParams().get("contaId");
+  const { dados, erro: erroSessao, recarregar } = useDadosDaSessao();
+  const [dataInicial, setDataInicial] = useState("");
+  const [dataFinal, setDataFinal] = useState("");
 
-  // Lógica de Filtragem Dinâmica aplicada aos dados locais
-  const transacoesFiltradas = TRANSACOES.filter((transacao) => {
-    if (!dataInicial && !dataFinal) return true;
-
-    const dataItem = transacao.dataISO;
-
-    if (dataInicial && dataItem < dataInicial) return false;
-    if (dataFinal && dataItem > dataFinal) return false;
-
-    return true;
+  const conta = contaId === null ? dados?.contas[0] : dados?.contas.find((item) => item.id === contaId);
+  const extrato = useExtratoPix(conta?.id);
+  const itens = extrato?.itens.filter((item) => {
+    const dia = diaLocal(item.realizadaEm);
+    return (!dataInicial || dia >= dataInicial) && (!dataFinal || dia <= dataFinal);
   });
 
   return (
     <Tela>
-      <SmartphoneHeader title="Transações da Conta" backToUrl="/dashboard" />
-
-      <div className="flex flex-col flex-1 min-h-0 font-sans">
-        
-        {/* Seção Filtros (Novos componentes de calendário por Referência) */}
-        <section className="shrink-0 mb-4">
-          <p className="text-sm font-semibold text-[#475569] mb-3">
-            Filtrar por:
-          </p>
-
-          <div className="flex gap-2 justify-start">
-            {/* BOX DATA INICIAL */}
-            <div 
-              onClick={() => inputInicialRef.current?.showPicker()}
-              className="inline-flex items-center justify-center bg-[#4f46e5] border border-[#4f46e5] rounded-xl px-3 py-2 cursor-pointer transition-colors hover:bg-[#4338ca]"
-            >
-              <input
-                ref={inputInicialRef}
-                type="date"
-                value={dataInicial}
-                onChange={(e) => setDataInicial(e.target.value)}
-                className="absolute opacity-0 w-0 h-0 pointer-events-none"
-              />
-              <div className="flex items-center gap-1.5">
-                {!dataInicial && <Calendar className="w-4 h-4 text-white stroke-[2.5]" />}
-                <span className="text-xs font-medium text-white">
-                  {dataInicial ? formatarDataBR(dataInicial) : "Data Inicial"}
-                </span>
-              </div>
-            </div>
-
-            {/* BOX DATA FINAL */}
-            <div 
-              onClick={() => inputFinalRef.current?.showPicker()}
-              className="inline-flex items-center justify-center bg-[#4f46e5] border border-[#4f46e5] rounded-xl px-3 py-2 cursor-pointer transition-colors hover:bg-[#4338ca]"
-            >
-              <input
-                ref={inputFinalRef}
-                type="date"
-                value={dataFinal}
-                onChange={(e) => setDataFinal(e.target.value)}
-                className="absolute opacity-0 w-0 h-0 pointer-events-none"
-              />
-              <div className="flex items-center gap-1.5">
-                {!dataFinal && <Calendar className="w-4 h-4 text-white stroke-[2.5]" />}
-                <span className="text-xs font-medium text-white">
-                  {dataFinal ? formatarDataBR(dataFinal) : "Data final"}
-                </span>
-              </div>
-            </div>
+      <SmartphoneHeader title="Transações da Conta" backToUrl="/tela-principal" />
+      {!dados && !erroSessao && <p role="status">Carregando suas contas...</p>}
+      {erroSessao && (
+        <>
+          <p role="alert" className="text-sm text-red-600">{erroSessao}</p>
+          <button type="button" className="mt-3 text-sm text-indigo-700" onClick={recarregar}>Tentar novamente</button>
+        </>
+      )}
+      {dados && !conta && (
+        <p className="text-sm text-slate-600">
+          {contaId === null ? "Você ainda não possui conta bancária." : "Esta conta não está disponível nesta sessão."}
+        </p>
+      )}
+      {conta && (
+        <>
+          <p className="mb-3 text-sm text-slate-700">{rotuloConta(conta)}</p>
+          <div className="mb-4 flex flex-wrap gap-3 text-sm">
+            <label className="flex flex-col gap-1">
+              Data inicial
+              <input type="date" value={dataInicial} onChange={(event) => setDataInicial(event.target.value)}
+                className="rounded-lg border border-slate-200 p-2" />
+            </label>
+            <label className="flex flex-col gap-1">
+              Data final
+              <input type="date" value={dataFinal} onChange={(event) => setDataFinal(event.target.value)}
+                className="rounded-lg border border-slate-200 p-2" />
+            </label>
           </div>
-        </section>
-
-        {/* Lista rolável utilizando o componente CardTransferencias */}
-        <section className="flex-1 overflow-y-auto -mx-1 px-1 mt-2">
-          {transacoesFiltradas.length > 0 ? (
-            <div className="flex flex-col gap-1">
-              {transacoesFiltradas.map((transacao) => (
-                <CardTransferencias
-                  key={transacao.id}
-                  title={transacao.titulo}
-                  description={transacao.nome}
-                  amount={transacao.valorNumerico}
-                  date={transacao.dataLabel}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="py-10 text-center">
-              <p className="text-sm font-medium text-slate-400">
-                Nenhuma transação encontrada nesse período.
-              </p>
-            </div>
+          {!extrato && <p role="status">Carregando extrato...</p>}
+          {extrato?.erro && <p role="alert" className="text-sm text-red-600">{extrato.erro}</p>}
+          {extrato && !extrato.erro && itens?.length === 0 && (
+            <p className="text-sm text-slate-600">Nenhum PIX encontrado nesse período.</p>
           )}
-        </section>
-      </div>
+          <section className="flex flex-col gap-1">
+            {itens?.map((item) => {
+              const recebido = item.contaDestinoId === conta.id;
+              return (
+                <Link key={item.id} href={linkDetalhesPix(item.id, conta.id)}>
+                  <CardTransferencias
+                    title={recebido ? "PIX recebido" : "PIX enviado"}
+                    description={item.origemExterna ?? item.chaveDestinoUtilizada}
+                    amount={recebido ? item.valor : -item.valor}
+                    date={formatarDataPix(item.realizadaEm)}
+                  />
+                </Link>
+              );
+            })}
+          </section>
+        </>
+      )}
     </Tela>
   );
 }

@@ -4,6 +4,7 @@ import com.byebank.pix.domain.comum.EntidadeBase;
 import com.byebank.pix.domain.conta.Dinheiro;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -33,7 +34,7 @@ public final class TransferenciaPix extends EntidadeBase {
                                                           String chaveDestinoUtilizada, Dinheiro valor) {
         Objects.requireNonNull(contaOrigemId, "A conta de origem é obrigatória.");
         return new TransferenciaPix(UUID.randomUUID(), contaOrigemId, contaDestinoId, chaveDestinoUtilizada,
-                valor, null, Instant.now());
+                valor, null, Instant.now().truncatedTo(ChronoUnit.MICROS));
     }
 
     public static TransferenciaPix registrarRecebimentoExterno(UUID contaDestinoId, String chaveDestinoUtilizada,
@@ -42,7 +43,14 @@ public final class TransferenciaPix extends EntidadeBase {
                 ? "Instituição externa"
                 : origemExterna.trim();
         return new TransferenciaPix(UUID.randomUUID(), null, contaDestinoId, chaveDestinoUtilizada,
-                valor, descricao, Instant.now());
+                valor, descricao, Instant.now().truncatedTo(ChronoUnit.MICROS));
+    }
+
+    public static TransferenciaPix reconstituir(UUID id, UUID contaOrigemId, UUID contaDestinoId,
+                                                String chaveDestinoUtilizada, Dinheiro valor, String origemExterna,
+                                                Instant realizadaEm) {
+        return new TransferenciaPix(id, contaOrigemId, contaDestinoId, chaveDestinoUtilizada, valor,
+                origemExterna, realizadaEm);
     }
 
     public boolean ehRecebimentoExterno() {

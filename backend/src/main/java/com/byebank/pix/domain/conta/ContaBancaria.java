@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /** Conta de titularidade única nesta etapa do projeto. */
 public final class ContaBancaria {
@@ -112,7 +113,19 @@ public final class ContaBancaria {
         return saldo.ehMaiorOuIgualA(valor);
     }
 
-    private void garantirContaAtiva() {
+    public synchronized <T> T executarComRollbackFinanceiro(Supplier<T> operacao) {
+        Dinheiro saldoAnterior = saldo;
+        Instant atualizacaoAnterior = atualizadaEm;
+        try {
+            return operacao.get();
+        } catch (RuntimeException | Error falha) {
+            saldo = saldoAnterior;
+            atualizadaEm = atualizacaoAnterior;
+            throw falha;
+        }
+    }
+
+    public void garantirContaAtiva() {
         if (status == StatusConta.BLOQUEADA) {
             throw new IllegalStateException("Conta bloqueada: não é possível realizar a operação.");
         }

@@ -1,158 +1,198 @@
 "use client";
 
-import { useState } from 'react';
-import { Info, ShieldCheck } from 'lucide-react'; 
-import Tela from '../../../components/Tela'; 
-import SmartphoneHeader from '../../../components/SmartphoneHeader';
-import Card from '../../../components/Card';
-import Tag from '../../../components/Tag';
-import BotaoGrande from '../../../components/BotaoGrande';
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Tela from "../../../components/Tela";
+import SmartphoneHeader from "../../../components/SmartphoneHeader";
+import Card from "../../../components/Card";
+import BotaoGrande from "../../../components/BotaoGrande";
+import { ApiError, buscarConta, resolverChavePix, transferirPix, type ChavePixResolvida, type Conta } from "../../../lib/api";
+import { formatarMoeda, limparRascunhoPix, obterRascunhoPix, rotuloConta, salvarRascunhoPix, type RascunhoPix } from "../../../lib/pix";
+import { obterSessaoLocal, type SessaoLocal } from "../../../lib/session";
+import { useDadosDaSessao } from "../../../lib/use-dados-da-sessao";
+
+interface Confirmacao {
+  rascunho: RascunhoPix;
+  origem: Conta;
+  destino: ChavePixResolvida;
+}
+
+async function prepararConfirmacao(rascunho: RascunhoPix, sessao: SessaoLocal): Promise<Confirmacao | null> {
+  const [origem, destino] = await Promise.all([
+    buscarConta(rascunho.contaOrigemId),
+    resolverChavePix(rascunho.chaveDestino),
+  ]);
+  if (obterSessaoLocal() !== sessao) return null;
+  if (origem.usuarioId !== rascunho.usuarioId || origem.status !== "ATIVA") {
+    throw new Error("Selecione uma conta de origem ativa da sua sessão.");
+  }
+  if (origem.id === destino.contaId) {
+    throw new Error("Não é possível transferir para a própria conta.");
+  }
+  const contaDestino = await buscarConta(destino.contaId);
+  if (contaDestino.status !== "ATIVA") {
+    throw new Error("A conta do destinatário está bloqueada.");
+  }
+  return { rascunho, origem, destino };
+}
 
 export default function ConfirmarPix() {
-  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { sessao, dados, erro: erroSessao, recarregar } = useDadosDaSessao();
+  const sessaoDaConfirmacao = useRef<SessaoLocal | null>(null);
 
-  // 1. Consts puras contendo todos os dados que aparecem na tela
-  const [contaOrigem] = useState({
-    id: "origem-123",
-    tipoConta: "Conta Corrente (*1234)",
-    brand: "ByeBank"
-  });
+  useEffect(() => {
+    if (sessaoDaConfirmacao.current && sessaoDaConfirmacao.current !== sessao) {
+      router.replace("/tela-principal");
+    } else if (dados) {
+      sessaoDaConfirmacao.current = sessao;
+    }
+  }, [dados, router, sessao]);
 
-  const [destinatario] = useState({
-    nome: "João da Silva",
-    chave: "123.456.789-00",
-    instituicao: "ByeBank"
-  });
+  return <ConfirmacaoPix key={sessao.versao} sessao={sessao} usuarioId={dados?.usuario.id}
+    erroSessao={erroSessao} recarregar={recarregar} />;
+}
 
-  const [transferencia] = useState({
-    valor: "251,00",
-    tarifa: "Grátis"
-  });
+function ConfirmacaoPix({ sessao, usuarioId, erroSessao, recarregar }: {
+  sessao: SessaoLocal;
+  usuarioId?: string;
+  erroSessao: string | null;
+  recarregar: () => void;
+}) {
+  const router = useRouter();
+  const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
+  const [carregamento, setCarregamento] = useState<"pendente" | "pronto" | "falhou">("pendente");
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [resultadoIncerto, setResultadoIncerto] = useState(false);
+  const envioOcupado = useRef(false);
+  const confirmacaoAtiva = useRef(false);
 
-  // 2. Função que processará o clique de envio
-  const handleConfirmarTransferencia = () => {
-    setLoading(true);
-    
-    // Objeto pronto unificando os dados para enviar para o seu backend
-    const dadosParaEnvio = {
-      contaOrigemId: contaOrigem.id,
-      chaveDestinatario: destinatario.chave,
-      valor: transferencia.valor,
+  useEffect(() => {
+    if (!usuarioId || obterSessaoLocal() !== sessao) return;
+    let ativo = true;
+    confirmacaoAtiva.current = true;
+    async function carregar(id: string) {
+      try {
+        const rascunho = obterRascunhoPix(id);
+        if (!rascunho) throw new Error("Preencha os dados da transferência antes de confirmar.");
+        const revisao = await prepararConfirmacao(rascunho, sessao);
+        if (revisao && ativo && obterSessaoLocal() === sessao) {
+          setConfirmacao(revisao);
+          setCarregamento("pronto");
+        }
+      } catch (error) {
+        if (ativo && obterSessaoLocal() === sessao) {
+          setCarregamento("falhou");
+          setErro(error instanceof Error ? error.message : "Não foi possível preparar a transferência.");
+        }
+      }
+    }
+    void carregar(usuarioId);
+    return () => {
+      ativo = false;
+      confirmacaoAtiva.current = false;
     };
-    
-    console.log("Integrar aqui a chamada de API enviando isto:", dadosParaEnvio);
-    
-    // Simulação do fim do carregamento
-    setTimeout(() => setLoading(false), 2000);
-  };
+  }, [sessao, usuarioId]);
+
+  function podeEnviar(origem: Conta, rascunho: RascunhoPix) {
+    if (!confirmacaoAtiva.current) return false;
+    const atual = obterSessaoLocal();
+    if (atual === sessao && atual.usuarioId === rascunho.usuarioId && origem.usuarioId === atual.usuarioId) return true;
+
+    router.replace("/tela-principal");
+    return false;
+  }
+
+  function confirmacaoContinuaNaSessao() {
+    return confirmacaoAtiva.current && obterSessaoLocal() === sessao;
+  }
+
+  async function confirmar() {
+    if (!confirmacao || envioOcupado.current || resultadoIncerto) return;
+    const rascunho = confirmacao.rascunho;
+    if (!podeEnviar(confirmacao.origem, rascunho)) return;
+
+    envioOcupado.current = true;
+    setEnviando(true);
+    setErro(null);
+
+    let envioIniciado = false;
+    let concluido = false;
+    try {
+      const atual = await prepararConfirmacao(rascunho, sessao);
+      if (!atual || !podeEnviar(atual.origem, rascunho)) return;
+      if (atual.destino.chaveId !== confirmacao.destino.chaveId
+        || atual.destino.contaId !== confirmacao.destino.contaId
+        || atual.destino.nomeTitular !== confirmacao.destino.nomeTitular) {
+        setConfirmacao(atual);
+        setErro("O destinatário mudou. Confira os dados atualizados antes de confirmar.");
+        return;
+      }
+
+      limparRascunhoPix();
+      if (!podeEnviar(atual.origem, rascunho)) return;
+      envioIniciado = true;
+      const transferencia = await transferirPix({
+        contaOrigemId: atual.origem.id,
+        chaveDestino: atual.destino.valor,
+        valor: rascunho.valor,
+      });
+      if (!confirmacaoContinuaNaSessao()) return;
+      concluido = true;
+      router.replace(`/pix/pix-realizado?id=${encodeURIComponent(transferencia.id)}`);
+    } catch (error) {
+      if (!confirmacaoContinuaNaSessao()) return;
+      if (envioIniciado && (!(error instanceof ApiError) || error.status >= 500)) {
+        setResultadoIncerto(true);
+        setErro("Não foi possível confirmar o resultado. Consulte o extrato antes de tentar novamente.");
+      } else {
+        if (envioIniciado) {
+          try { salvarRascunhoPix(rascunho); } catch { /* Os dados permanecem disponíveis nesta tela. */ }
+        }
+        setErro(error instanceof Error ? error.message : "Não foi possível realizar a transferência.");
+      }
+    } finally {
+      if (!concluido && confirmacaoContinuaNaSessao()) {
+        envioOcupado.current = false;
+        setEnviando(false);
+      }
+    }
+  }
 
   return (
     <Tela>
-      <SmartphoneHeader title="CONFIRMAR PIX" backToUrl="/pix/transferir-pix" />
-
-      <div className="flex flex-col gap-4 px-4 font-sans pb-6">
-        
-        {/* Banner Informativo Superior usando seu <Card> */}
-        <Card 
-          bgClass="bg-[#EEF2FF]" 
-          borderClass="border border-[#E0E7FF]" 
-          paddingClass="p-3.5" 
-          roundedClass="rounded-xl"
-        >
-          <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-[#4F46E5] shrink-0 mt-0.5 stroke-[1.8]" />
-            <p className="text-xs text-[#4F46E5] font-medium leading-relaxed">
-              Revise com atenção as informações antes de finalizar o envio.
-            </p>
-          </div>
-        </Card>
-
-        {/* Card Principal com os dados mapeados diretamente das suas consts */}
-        <Card paddingClass="p-6" bgClass="bg-white" roundedClass="rounded-3xl">
-          <div className="flex flex-col gap-6">
-            
-            {/* Bloco de Destaque do Valor */}
-            <div className="flex flex-col items-center justify-center text-center pt-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Valor a transferir</span>
-              <span className="text-3xl font-extrabold text-slate-900 mt-1">
-                R$ {transferencia.valor}
-              </span>
+      <SmartphoneHeader title="Confirmar PIX" backToUrl={enviando ? "" : "/pix/transferir-pix"} />
+      <div className="flex flex-col gap-4">
+        {!erroSessao && carregamento === "pendente" && <p role="status">Consultando os dados do PIX...</p>}
+        {erroSessao && (
+          <>
+            <p role="alert" className="text-sm text-red-600">{erroSessao}</p>
+            <BotaoGrande text="Tentar novamente" onClick={recarregar} />
+          </>
+        )}
+        {confirmacao && (
+          <Card>
+            <div className="text-center">
+              <p className="text-sm text-slate-500">Valor a transferir</p>
+              <strong className="text-3xl text-slate-900">{formatarMoeda(confirmacao.rascunho.valor)}</strong>
             </div>
-
-            <div className="w-full h-[1px] bg-slate-100" />
-
-            {/* Lista de Informações extraídas das consts de estado */}
-            <div className="flex flex-col gap-4 text-sm">
-              <div className="flex justify-between items-start gap-4">
-                <span className="text-slate-400 font-medium">Para</span>
-                <span className="font-bold text-slate-800 text-right">{destinatario.nome}</span>
-              </div>
-              
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-slate-400 font-medium">Chave PIX / CPF</span>
-                <span className="font-bold text-slate-800 text-right">{destinatario.chave}</span>
-              </div>
-
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-slate-400 font-medium">Instituição</span>
-                <span className="font-bold text-slate-800 text-right">{destinatario.instituicao}</span>
-              </div>
-
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-slate-400 font-medium">Origem</span>
-                <span className="font-bold text-slate-800 text-right">
-                  {contaOrigem.tipoConta}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-slate-400 font-medium">Tarifa</span>
-                <Tag label={transferencia.tarifa} variant="green" />
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Banner de Segurança Inferior usando seu <Card> */}
-        <Card 
-          bgClass="bg-[#F8FAFC]" 
-          borderClass="border border-slate-100" 
-          paddingClass="p-3.5" 
-          roundedClass="rounded-xl"
-        >
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="w-5 h-5 text-[#4F46E5] shrink-0 mt-0.5 stroke-[1.8]" />
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Transação segura pelo protocolo de segurança Banco Central.
-            </p>
-          </div>
-        </Card>
-
-        {/* Bloco de Botões usando o seu <BotaoGrande> */}
-        <div className="flex gap-3 mt-4 w-full">
-          <div className="flex-1">
-            <BotaoGrande 
-              text="Cancelar" 
-              bgClass="bg-white hover:bg-slate-50"
-              borderClass="border border-slate-200"
-              textClass="text-slate-600 font-semibold text-sm"
-              widthClass="w-full"
-              onClick={() => window.history.back()}
-            />
-          </div>
-          
-          <div className="flex-1">
-            <BotaoGrande 
-              text="Confirmar PIX" 
-              bgClass="bg-[#4F46E5] hover:bg-[#4338CA]"
-              textClass="text-white font-semibold text-sm"
-              widthClass="w-full"
-              isLoading={loading}
-              onClick={handleConfirmarTransferencia}
-            />
-          </div>
-        </div>
-
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between gap-4"><dt>Para</dt><dd className="text-right font-semibold">{confirmacao.destino.nomeTitular}</dd></div>
+              <div className="flex justify-between gap-4"><dt>Chave PIX</dt><dd className="break-all text-right">{confirmacao.destino.valor}</dd></div>
+              <div className="flex justify-between gap-4"><dt>Origem</dt><dd className="text-right">{rotuloConta(confirmacao.origem)}</dd></div>
+            </dl>
+          </Card>
+        )}
+        {erro && <p role="alert" className="text-sm text-red-600">{erro}</p>}
+        {resultadoIncerto && confirmacao && (
+          <Link href={`/conta/historico-transacoes?contaId=${encodeURIComponent(confirmacao.origem.id)}`}
+            className="text-sm font-semibold text-indigo-700">Consultar extrato</Link>
+        )}
+        {confirmacao && !resultadoIncerto && (
+          <BotaoGrande text="Confirmar PIX" isLoading={enviando} onClick={confirmar} />
+        )}
       </div>
     </Tela>
   );

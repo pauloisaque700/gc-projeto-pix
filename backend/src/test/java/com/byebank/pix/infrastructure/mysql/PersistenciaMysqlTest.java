@@ -82,8 +82,8 @@ class PersistenciaMysqlTest {
             var contas = requisicao(contexto, http, "GET", "/api/usuarios/" + usuarioId + "/contas", null, 200);
             assertEquals(1, contas.size());
             assertEquals(contaId, contas.get(0).path("id").asString());
-            requisicao(contexto, http, "GET", "/api/contas/" + contaId + "/chaves-pix", null, 404);
-            requisicao(contexto, http, "GET", "/api/contas/" + contaId + "/extrato-pix", null, 404);
+            assertEquals(0, requisicao(contexto, http, "GET", "/api/contas/" + contaId + "/chaves-pix", null, 200).size());
+            assertEquals(0, requisicao(contexto, http, "GET", "/api/contas/" + contaId + "/extrato-pix", null, 200).size());
         }
     }
 

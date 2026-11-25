@@ -11,6 +11,10 @@ public interface RepositorioChavePix {
 
     Optional<ChavePix> buscarPorValor(String valor);
 
+    default Optional<ChavePix> buscarPorValorParaTransferencia(String valor) {
+        return buscarPorValor(valor);
+    }
+
     boolean existePorValor(String valor);
 
     List<ChavePix> listarPorContaId(UUID contaId);

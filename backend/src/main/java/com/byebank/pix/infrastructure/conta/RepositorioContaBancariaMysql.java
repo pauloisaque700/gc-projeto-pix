@@ -96,6 +96,24 @@ public class RepositorioContaBancariaMysql implements RepositorioContaBancaria {
     }
 
     @Override
+    public Optional<ContaBancaria> buscarPorIdParaAtualizar(UUID id) {
+        return jdbc.sql("""
+                SELECT id, usuario_id, agencia, numero, saldo, tipo_conta, limite_diario, notificacao,
+                       status, criada_em, atualizada_em
+                FROM conta_bancaria WHERE id = :id AND status <> 'ENCERRADA' FOR UPDATE
+                """).param("id", id.toString()).query(CONTA).optional();
+    }
+
+    @Override
+    public void salvarSaldo(ContaBancaria conta) {
+        jdbc.sql("""
+                UPDATE conta_bancaria SET saldo = :saldo, atualizada_em = :atualizadaEm WHERE id = :id
+                """).param("id", conta.getId().toString())
+                .param("saldo", conta.getSaldo().valor())
+                .param("atualizadaEm", LocalDateTime.ofInstant(conta.getAtualizadaEm(), ZoneOffset.UTC)).update();
+    }
+
+    @Override
     public boolean existePorAgenciaENumero(String agencia, String numero) {
         return jdbc.sql("""
                 SELECT EXISTS (SELECT 1 FROM conta_bancaria WHERE agencia = :agencia AND numero = :numero)

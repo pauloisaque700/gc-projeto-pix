@@ -10,8 +10,10 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Repository; 
+import org.springframework.context.annotation.Profile;
 
 @Repository
+@Profile("!mysql")
 public class RepositorioTransferenciaPixEmMemoria implements RepositorioTransferenciaPix {
     private final Map<UUID, TransferenciaPix> transferenciasPorId = new ConcurrentHashMap<>();
 

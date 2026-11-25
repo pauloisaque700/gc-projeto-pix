@@ -113,7 +113,8 @@ public class ServicoContaBancaria {
      */
     @Transactional
     public void remover(UUID id) {
-        ContaBancaria conta = buscarPorId(id);
+        ContaBancaria conta = repositorioConta.buscarPorIdParaAtualizar(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Conta bancária não encontrada."));
         for (TransferenciaPix transferencia : repositorioTransferencia.listarPorConta(conta.getId())) {
             repositorioTransferencia.remover(transferencia);
         }

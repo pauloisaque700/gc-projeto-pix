@@ -14,10 +14,10 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BiFunction;
 
 @Service
 @Profile("!mysql")
@@ -38,37 +38,33 @@ public class ServicoTransferenciaPix {
 
     /** Transfere um valor entre duas contas do próprio banco, localizando o destino pela chave PIX informada. */
     public TransferenciaPix transferir(TransferirPixCommand comando) {
-        ContaBancaria contaOrigem = buscarContaOuFalhar(comando.contaOrigemId());
         ChavePix chaveDestino = buscarChaveOuFalhar(comando.chaveDestino());
-        ContaBancaria contaDestino = buscarContaOuFalhar(chaveDestino.getContaId());
-
-        if (contaOrigem.getId().equals(contaDestino.getId())) {
+        if (comando.contaOrigemId().equals(chaveDestino.getContaId())) {
             throw new RegraDeNegocioException("Não é possível transferir para a própria conta.");
         }
-
         Dinheiro valor = converterValor(comando.valor());
+        return movimentar(comando.contaOrigemId(), chaveDestino.getContaId(), (origem, destino) -> {
+            confirmarChaveDestino(chaveDestino);
+            TransferenciaPix transferencia = TransferenciaPix.registrarEntreContas(
+                    origem.getId(), destino.getId(), chaveDestino.getValor(), valor);
+            var dia = transferencia.getRealizadaEm().atZone(FUSO_OPERACIONAL).toLocalDate();
+            Dinheiro totalDebitado = repositorioTransferencia.totalDebitado(origem.getId(),
+                    dia.atStartOfDay(FUSO_OPERACIONAL).toInstant(), dia.plusDays(1).atStartOfDay(FUSO_OPERACIONAL).toInstant());
 
-        synchronized (contaOrigem) {
-            Dinheiro totalAposTransferencia = totalDebitadoHoje(contaOrigem.getId()).somar(valor);
-            if (!contaOrigem.getLimiteDiario().ehMaiorOuIgualA(totalAposTransferencia)) {
+            if (!origem.getLimiteDiario().ehMaiorOuIgualA(totalDebitado.somar(valor))) {
                 throw new RegraDeNegocioException("Limite diário de transferência excedido.");
             }
-
-            if (!contaOrigem.temSaldoSuficiente(valor)) {
+            if (!origem.temSaldoSuficiente(valor)) {
                 throw new RegraDeNegocioException("Saldo insuficiente para realizar a transferência.");
             }
-
-            contaOrigem.debitar(valor);
-            contaDestino.creditar(valor);
-
-            repositorioConta.salvar(contaOrigem);
-            repositorioConta.salvar(contaDestino);
-
-            TransferenciaPix transferencia = TransferenciaPix.registrarEntreContas(
-                    contaOrigem.getId(), contaDestino.getId(), chaveDestino.getValor(), valor
-            );
-            return repositorioTransferencia.salvar(transferencia);
-        }
+            origem.garantirContaAtiva();
+            destino.garantirContaAtiva();
+            origem.debitar(valor);
+            repositorioConta.salvarSaldo(origem);
+            destino.creditar(valor);
+            repositorioConta.salvarSaldo(destino);
+            return registrar(transferencia);
+        });
     }
 
     /**
@@ -78,17 +74,37 @@ public class ServicoTransferenciaPix {
      */
     public TransferenciaPix receberExterno(ReceberPixExternoCommand comando) {
         ChavePix chaveDestino = buscarChaveOuFalhar(comando.chaveDestino());
-        ContaBancaria contaDestino = buscarContaOuFalhar(chaveDestino.getContaId());
-
         Dinheiro valor = converterValor(comando.valor());
+        return movimentar(null, chaveDestino.getContaId(), (origem, destino) -> {
+            confirmarChaveDestino(chaveDestino);
+            destino.creditar(valor);
+            repositorioConta.salvarSaldo(destino);
+            return registrar(TransferenciaPix.registrarRecebimentoExterno(
+                    destino.getId(), chaveDestino.getValor(), valor, comando.origemExterna()));
+        });
+    }
 
-        contaDestino.creditar(valor);
-        repositorioConta.salvar(contaDestino);
+    protected TransferenciaPix movimentar(UUID origemId, UUID destinoId,
+                                          BiFunction<ContaBancaria, ContaBancaria, TransferenciaPix> operacao) {
+        ContaBancaria destino = buscarContaOuFalhar(destinoId);
+        if (origemId == null) {
+            return destino.executarComRollbackFinanceiro(() -> operacao.apply(null, destino));
+        }
+        ContaBancaria origem = buscarContaOuFalhar(origemId);
+        boolean origemPrimeiro = origemId.compareTo(destinoId) < 0;
+        ContaBancaria primeira = origemPrimeiro ? origem : destino;
+        ContaBancaria segunda = origemPrimeiro ? destino : origem;
+        return primeira.executarComRollbackFinanceiro(() -> segunda.executarComRollbackFinanceiro(
+                () -> operacao.apply(origem, destino)));
+    }
 
-        TransferenciaPix transferencia = TransferenciaPix.registrarRecebimentoExterno(
-                contaDestino.getId(), chaveDestino.getValor(), valor, comando.origemExterna()
-        );
-        return repositorioTransferencia.salvar(transferencia);
+    protected TransferenciaPix registrar(TransferenciaPix transferencia) {
+        try {
+            return repositorioTransferencia.salvar(transferencia);
+        } catch (RuntimeException | Error falha) {
+            repositorioTransferencia.remover(transferencia);
+            throw falha;
+        }
     }
 
     public TransferenciaPix buscarPorId(UUID id) {
@@ -111,6 +127,12 @@ public class ServicoTransferenciaPix {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Chave PIX de destino não encontrada."));
     }
 
+    private void confirmarChaveDestino(ChavePix chave) {
+        repositorioChave.buscarPorValorParaTransferencia(chave.getValor())
+                .filter(atual -> atual.getId().equals(chave.getId()) && atual.getContaId().equals(chave.getContaId()))
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Chave PIX de destino não encontrada."));
+    }
+
     private ContaBancaria buscarContaOuFalhar(UUID contaId) {
         return repositorioConta.buscarPorId(contaId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Conta bancária não encontrada."));
@@ -124,15 +146,4 @@ public class ServicoTransferenciaPix {
         return dinheiro;
     }
 
-    private Dinheiro totalDebitadoHoje(UUID contaId) {
-        LocalDate hoje = LocalDate.now(FUSO_OPERACIONAL);
-        return repositorioTransferencia.listarPorConta(contaId).stream()
-                .filter(transferencia -> contaId.equals(transferencia.getContaOrigemId()))
-                .filter(transferencia -> transferencia.getRealizadaEm()
-                        .atZone(FUSO_OPERACIONAL)
-                        .toLocalDate()
-                        .equals(hoje))
-                .map(TransferenciaPix::getValor)
-                .reduce(Dinheiro.zero(), Dinheiro::somar);
-    }
 }

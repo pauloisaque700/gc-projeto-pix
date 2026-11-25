@@ -11,7 +11,15 @@ public interface RepositorioContaBancaria {
 
     ContaBancaria salvar(ContaBancaria conta);
 
+    default void salvarSaldo(ContaBancaria conta) {
+        salvar(conta);
+    }
+
     Optional<ContaBancaria> buscarPorId(UUID id);
+
+    default Optional<ContaBancaria> buscarPorIdParaAtualizar(UUID id) {
+        return buscarPorId(id);
+    }
 
     boolean existePorAgenciaENumero(String agencia, String numero);
 

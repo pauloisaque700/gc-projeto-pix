@@ -11,6 +11,7 @@ import com.byebank.pix.domain.pix.TipoChavePix;
 import com.byebank.pix.domain.usuario.RepositorioUsuario;
 import com.byebank.pix.domain.usuario.Usuario;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -45,8 +46,9 @@ public class ServicoChavePix {
         return new ResultadoValidacaoChavePix(tipo, chave.getValor(), valida, disponivel);
     }
 
+    @Transactional
     public ChavePix associar(AssociarChavePixCommand comando) {
-        ContaBancaria conta = buscarContaOuFalhar(comando.contaId());
+        ContaBancaria conta = bloquearContaOuFalhar(comando.contaId());
         garantirLimiteDeChaves(conta.getId());
 
         ChavePix chave = FabricaChavePix.criar(comando.tipo(), comando.valor());
@@ -67,8 +69,9 @@ public class ServicoChavePix {
         return repositorioChave.salvar(chave);
     }
 
+    @Transactional
     public ChavePix gerarAleatoria(UUID contaId) {
-        ContaBancaria conta = buscarContaOuFalhar(contaId);
+        ContaBancaria conta = bloquearContaOuFalhar(contaId);
         garantirLimiteDeChaves(conta.getId());
 
         ChavePix chave;
@@ -107,9 +110,16 @@ public class ServicoChavePix {
         return repositorioChave.listarPorContaId(contaId);
     }
 
+    @Transactional
     public void remover(UUID chaveId) {
         ChavePix chave = buscarPorId(chaveId);
+        bloquearContaOuFalhar(chave.getContaId());
         repositorioChave.remover(chave);
+    }
+
+    private ContaBancaria bloquearContaOuFalhar(UUID contaId) {
+        return repositorioConta.buscarPorIdParaAtualizar(contaId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Conta bancária não encontrada."));
     }
 
     private void garantirChavePertenceAoTitular(ContaBancaria conta, ChavePix chave) {

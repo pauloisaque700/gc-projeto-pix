@@ -12,6 +12,7 @@ import com.byebank.pix.domain.usuario.Usuario;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.UUID;
 
 @Service
@@ -58,7 +59,9 @@ public class ServicoUsuario {
     @Transactional
     public void remover(UUID id) {
         Usuario usuario = buscarPorId(id);
-        for (ContaBancaria conta : servicoConta.listarPorUsuario(usuario.getId())) {
+        var contas = servicoConta.listarPorUsuario(usuario.getId()).stream()
+                .sorted(Comparator.comparing(ContaBancaria::getId)).toList();
+        for (ContaBancaria conta : contas) {
             servicoConta.remover(conta.getId());
         }
         repositorioUsuario.remover(usuario);

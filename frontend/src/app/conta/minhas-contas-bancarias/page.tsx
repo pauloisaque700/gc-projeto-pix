@@ -189,7 +189,7 @@ export default function MinhasContasBancarias() {
                       bgClass="bg-[#EEF2FF] hover:bg-[#E0E7FF]"
                       textClass="text-[#4F46E5] font-semibold text-sm"
                       widthClass="w-full"
-                      onClick={() => router.push(`/conta/${conta.id}`)}
+                      onClick={() => router.push(`/conta/historico-transacoes?contaId=${encodeURIComponent(conta.id)}`)}
                     />
                     <BotaoGrande
                       text="Editar Conta"
