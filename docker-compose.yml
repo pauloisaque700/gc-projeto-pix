@@ -1,4 +1,31 @@
 services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pix-prometheus-${APP_ENV:-dev}
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+    networks:
+      - pix-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pix-grafana-${APP_ENV:-dev}
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - pix-network
+
   mysql:
     image: ${MYSQL_IMAGE:-mysql:8.4}
     container_name: pix-mysql-${APP_ENV:-dev}
@@ -78,6 +105,7 @@ services:
 
 volumes:
   mysql-data:
+  grafana_data:
 
 networks:
   pix-network:
